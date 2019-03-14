@@ -9,8 +9,15 @@
 # Matching
 # .. Propensity Score Matching
 # .. Genetic Matching
-# Genetic Algorithm
+# Test Functions
 # .. Asymmetric Double Claw function
+# .. Rosenbrock function
+# .. Rastrigin function
+# GA Packages
+# .. Using genoud() function
+# .. Using ga() function
+# Genetic Optimization
+# .. Genetic operators
 # .. Algorithm
 
 
@@ -92,26 +99,53 @@ MatchBalance(Tr ~ age + I(age^2) + educ + I(educ^2)
 
 
 ## ## ## ## ## ## ## ## ## ## ##
-# GENETIC ALGORITHM         ####
+# TEST FUNCTIONS            ####
 ## ## ## ## ## ## ## ## ## ## ##
 
 # .. Asymmetric Double Claw function ####
-claw <- function(xx) {
-  x <- xx[1]
-  y <- (0.46 * (dnorm(x, -1, 2/3) + dnorm(x, 1, 2/3)) +
+claw <- function(x) {
+  f <- (0.46 * (dnorm(x, -1, 2/3) + dnorm(x, 1, 2/3)) +
             (1/300) * (dnorm(x, -0.5, 0.01) + dnorm(x, -1, 0.01) 
                        + dnorm(x, -1.5, 0.01)) +
             (7/300) * (dnorm(x, 0.5, 0.07) + dnorm(x, 1, 0.07) 
                        + dnorm(x, 1.5, 0.07)))
-  return(y)
+  return(f)
 }
-xx <- seq(-3,3, by = 0.01)
-yy <- NULL
-for (i in 1:length(xx)) {
-  yy[i] <- claw(xx[i])
+x <- seq(-3,3, by = 0.01)
+y <- NULL
+for (i in 1:length(x)) {
+  y[i] <- claw(x[i])
 }
-plot(xx, yy, type = "l")
+plot(x, y, type = "l")
 
+
+# .. Rosenbrock function ####
+rosenbrock <- function(x1, x2){
+  a <- 1
+  b <- 100
+  f <- (a - x1)^2 + b*(x2 - x1^2)^2
+  return(f)
+}
+x1 <- seq(-2, 2, by = 0.5)
+x2 <- seq(-1, 3, by = 0.5)
+y <- outer(x1, x2, rosenbrock)
+persp3D(x1, x2, y)
+
+
+# .. Rastrigin function ####
+rastrigin <- function(x1, x2){
+  f <- 20 + x1^2 + x2^2 - 10*(cos(2*pi*x1) + cos(2*pi*x2))
+  return(f)
+}
+x1 <- x2 <- seq(-5.12, 5.12, by = 0.5)
+y <- outer(x1, x2, rastrigin)
+persp3D(x1, x2, y)
+
+
+
+## ## ## ## ## ## ## ## ## ## ##
+# GA PACKAGES               ####
+## ## ## ## ## ## ## ## ## ## ##
 
 # .. Using genoud() function ####
 GA1.claw <- genoud(claw, nvars = 1, max = TRUE, pop.size = 3000)
@@ -132,12 +166,73 @@ GA2.sol <- GA2.claw@solution
 GA2.solvalue <- GA2.claw@fitnessValue
 claw(GA2.sol) == GA2.solvalue
 
-rm(list = ls())
+GA2.rastrigin <- ga(type = "real-valued",
+                    fitness = function(x) -rastrigin(x[1], x[2]),
+                    lower = c(-5.12, -5.12), upper = c(5.12, 5.12))
+summary(GA2.rastrigin)
+GA2.pop <- GA2.rastrigin@population
+GA2.fitness <- GA2.rastrigin@fitness
+plot(GA2.pop)
+plot(GA2.fitness)
+GA2.sol <- GA2.rastrigin@solution
+GA2.solvalue <- GA2.rastrigin@fitnessValue
+rastrigin(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
+
+GA2.rosenbrock <- ga(type = "real-valued",
+                    fitness = function(x) -rosenbrock(x[1], x[2]),
+                    lower = c(-2, -1), upper = c(2, 3))
+summary(GA2.rosenbrock)
+GA2.pop <- GA2.rosenbrock@population
+GA2.fitness <- GA2.rosenbrock@fitness
+plot(GA2.pop)
+plot(GA2.fitness)
+GA2.sol <- GA2.rosenbrock@solution
+GA2.solvalue <- GA2.rosenbrock@fitnessValue
+rosenbrock(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
+
+
+
+## ## ## ## ## ## ## ## ## ## ##
+# GENETIC OPTIMIZATION      ####
+## ## ## ## ## ## ## ## ## ## ##
+
+
+# .. Genetic operators ####
+
+# Roulette wheel selection
+roulette <- function(pop, fitness){
+  prob <- abs(fitness)/sum(abs(fitness))
+  prob <- pmin(pmax(0, prob/sum(prob)), 1, na.rm = TRUE)
+  select <- sample(1:pop.size, size = pop.size,
+                   prob = prob, replace = T)
+  pop <- pop[select]
+  return(pop)
+}
+
+roulette <- function(pop, fitness){
+  previous_prob <- 0
+  
+  for (i in 1:pop.size){
+    prob[i] <- previous_prob + fitness[i]/sum(fitness)
+    previous_prob <- prob[i]
+  }
+  
+  for (i in 1:pop.size){
+    u <- runif(1)
+    if (length(which(prob < u)) == 0){
+      pop[i] <- pop[1]
+    } else {
+      pop[i] <- pop[max(which(prob < u))]
+    }
+  }
+  return(pop)
+}
 
 
 # .. Algorithm ####
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
-               lower = NULL, upper = NULL, init.pop = NULL){
+               lower = NULL, upper = NULL, init.pop = NULL,
+               selection = roulette){
   
   # Initialize empty list
   GA.out <- list()
@@ -163,41 +258,25 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
       fitness[i] <- fitness.func(pop[i])
     }
     
-    # Roulette wheel selection
-    previous_prob <- 0
-    
-    for (i in 1:pop.size){
-      prob[i] <- previous_prob + fitness[i]/sum(fitness)
-      previous_prob <- prob[i]
-    }
-    
-    newpop <- pop
-    for (i in 1:pop.size){
-      u <- runif(1)
-      if (length(which(prob < u)) == 0){
-        newpop[i] <- pop[1]
-      } else {
-        newpop[i] <- pop[max(which(prob < u))]
-      }
-    }
+    # Selection
+    pop <- selection(pop, fitness)
     
     # Crossover
-    parent_A <- newpop[1:(pop.size/2)]
-    parent_B <- newpop[(pop.size/2+1):pop.size]
+    parent_A <- pop[1:(pop.size/2)]
+    parent_B <- pop[(pop.size/2+1):pop.size]
     p <- runif(1)
     offspring_A <- p*parent_A + (1-p)*parent_B
     offspring_B <- p*parent_B + (1-p)*parent_A
     
-    newpop <- c(offspring_A, offspring_B)
+    pop <- c(offspring_A, offspring_B)
     
     # Mutation
-    #newpop <- runif(pop.size, min(newpop), max(newpop))
+    pop <- runif(pop.size, min(pop), max(pop))
     
     for (i in 1:pop.size) {
-      fitness[i] <- fitness.func(newpop[i])
+      fitness[i] <- fitness.func(pop[i])
     }
     cat("Fitness value: ", max(fitness), "\n")
-    pop <- newpop
   }
   
   fitness.value <- max(fitness)
