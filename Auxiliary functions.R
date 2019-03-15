@@ -5,8 +5,8 @@ plot.pop.evol <- function(result, filter = F, gen.sequence = NULL){
                           Gen, Individual)
   pop.evolution$Generation <- sapply(strsplit(pop.evolution$Gen, "_"), "[", 1)
   pop.evolution$Variable <- sapply(strsplit(pop.evolution$Gen, "_"), "[", 2)
-  pop.evolution <- pop.evolution %>%
-    select(Generation, Variable, Individual)
+  pop.evolution <- pop.evolution %>% 
+    dplyr::select(Generation, Variable, Individual)
   
   if(filter == TRUE){
     plot.data <- pop.evolution %>%
@@ -22,12 +22,12 @@ plot.pop.evol <- function(result, filter = F, gen.sequence = NULL){
     V1 <- plot.data %>%
       filter(Variable == "V1") %>%
       rename(Var1 = Individual) %>%
-      select(-Variable)
+      dplyr::select(-Variable)
     V2 <- plot.data %>%
       filter(Variable == "V2") %>%
       rename(Var2 = Individual) %>%
-      select(-Variable)
-    plot.data <- cbind(V1, V2 %>% select(Var2))
+      dplyr::select(-Variable)
+    plot.data <- cbind(V1, V2 %>% dplyr::select(Var2))
   }
   
   if (nvars == 1){
@@ -39,14 +39,18 @@ plot.pop.evol <- function(result, filter = F, gen.sequence = NULL){
     g <- ggplot(plot.data,
                 aes(x = Var1, y = Var2, col = Generation))
   }
-  g +
+  g <- g +
     geom_point() +
-    labs(y = "Solution",
+    labs(x = ifelse(nvars == 1, "", "Variable 1"),
+         y = ifelse(nvars == 1, "Solution", "Variable 2"),
          title = "Evolution of solution in population") +
     scale_color_discrete(breaks = sort(as.numeric(plot.data$Generation))) +
-    theme(axis.title.x = element_blank(),
-          axis.text.x = element_blank(),
+    theme(axis.text.x = element_blank(),
           axis.ticks.x = element_blank())
+  if(nvars > 1){
+    g <- g + geom_count(show.legend = F)
+  }
+  g  
 }
 
 plot.fitness.evol <- function(result, filter = F, gen.sequence = NULL){
