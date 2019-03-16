@@ -5,13 +5,13 @@
 # INDEX                     ####
 ## ## ## ## ## ## ## ## ## ## ##
 # Preamble
+# Test Functions
+# .. Asymmetric Double Claw function
+# .. Rosenbrock function
 # Data
 # Matching
 # .. Propensity Score Matching
 # .. Genetic Matching
-# Test Functions
-# .. Asymmetric Double Claw function
-# .. Rosenbrock function
 # .. Rastrigin function
 # GA Packages
 # .. Using genoud() function
@@ -26,7 +26,7 @@
 # PREAMBLE                  ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232")
+setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project")
 #install.packages("genalg")
 #install.packages("GA")
 #devtools::install_github('drizztxx/gatbxr')
@@ -59,12 +59,21 @@ claw <- function(x) {
                        + dnorm(x, 1.5, 0.07)))
   return(f)
 }
+
 x <- seq(-3,3, by = 0.01)
 y <- NULL
 for (i in 1:length(x)) {
   y[i] <- claw(x[i])
 }
-plot(x, y, type = "l")
+claw.data <- as.data.frame(cbind(x, y))
+g <- ggplot(claw.data, aes(x = x, y = y)) +
+  geom_line() + 
+  geom_point(x = claw.data$x[which(claw.data$y == max(claw.data$y))],
+             y = max(claw.data$y),
+             col = "red", size = 2) +
+  labs(title = "Asymmetric Double Claw function")
+ggsave(g, file = "Figures/Asymmetric Double Claw function.png",
+       width = 6, height = 4.5, units = "in")
 
 
 # .. Rosenbrock function ####
@@ -77,7 +86,15 @@ rosenbrock <- function(x1, x2){
 x1 <- seq(-2, 2, by = 0.5)
 x2 <- seq(-1, 3, by = 0.5)
 y <- outer(x1, x2, rosenbrock)
-persp3D(x1, x2, y)
+
+# Manipulate viewing angles in interactive window and save snapshot
+persp3d(x1, x2, y, col = "yellow")
+# zoom <- par3d()$zoom
+# userMatrix <- par3d()$userMatrix
+# windowRect <- par3d()$windowRect
+# open3d(zoom = zoom, userMatrix = userMatrix, windowRect = windowRect)
+# persp3d(x1, x2, y, col = "yellow")
+# rgl.snapshot("Figures/Rosenbrock function.png", fmt = "png")
 
 
 # .. Rastrigin function ####
@@ -87,7 +104,15 @@ rastrigin <- function(x1, x2){
 }
 x1 <- x2 <- seq(-5.12, 5.12, by = 0.5)
 y <- outer(x1, x2, rastrigin)
-persp3D(x1, x2, y)
+
+# Manipulate viewing angles in interactive window and save snapshot
+persp3d(x1, x2, y, col = "green")
+zoom <- par3d()$zoom
+userMatrix <- par3d()$userMatrix
+windowRect <- par3d()$windowRect
+open3d(zoom = zoom, userMatrix = userMatrix, windowRect = windowRect)
+persp3d(x1, x2, y, col = "green")
+rgl.snapshot("Figures/Rastrigin function.png", fmt = "png")
 
 
 
