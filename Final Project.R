@@ -47,65 +47,6 @@ library(tidyverse)
 
 
 ## ## ## ## ## ## ## ## ## ## ##
-# DATA                      ####
-## ## ## ## ## ## ## ## ## ## ##
-
-data("lalonde") # From Matching
-attach(lalonde)
-Y <- lalonde$re78
-Tr <- lalonde$treat
-
-
-
-## ## ## ## ## ## ## ## ## ## ##
-# MATCHING                  ####
-## ## ## ## ## ## ## ## ## ## ##
-
-# .. Propensity Score Matching ####
-glm <- glm(treat ~ age + educ + black + hisp
-           + married + nodegr + re74 + re75, 
-           family = binomial, data = lalonde)
-match.ps <- Match(Y = Y, Tr = Tr, X = glm$fitted)
-MatchBalance(Tr ~ age + I(age^2) + educ + I(educ^2) 
-             + black + hisp + married + nodegr 
-             + re74 + I(re74^2) + re75 + I(re75^2) 
-             + u74 + u75 + I(re74 * re75)
-             + I(age * nodegr) + I(educ * re74)
-             + I(educ * re75),
-             match.out = match.ps, 
-             nboots = 1000, data = lalonde)
-
-
-# .. Genetic Matching ####
-
-X <- cbind(age, educ, black, hisp, married, 
-           nodegr, re74, re75, u74, u75)
-BalanceMatrix <- cbind(age, I(age^2), educ, I(educ^2), 
-                       black, hisp, married, nodegr, 
-                       re74, I(re74^2), re75, I(re75^2), 
-                       u74, u75, I(re74 * re75), 
-                       I(age * nodegr), I(educ * re74), 
-                       I(educ * re75))
-GA <- GenMatch(Tr = Tr, X = X, 
-               BalanceMatrix = BalanceMatrix, 
-               pop.size = 1000)
-match.GA <- Match(Y = Y, Tr = Tr, X = X, 
-                  Weight.matrix = GA)
-wmatrix <- GA$Weight.matrix
-match.GA <- Match(Y = Y, Tr = Tr, X = X, 
-                  Weight.matrix = wmatrix)
-MatchBalance(Tr ~ age + I(age^2) + educ + I(educ^2) 
-             + black + hisp + married + nodegr 
-             + re74 + I(re74^2) + re75 + I(re75^2) 
-             + u74 + u75 + I(re74 * re75)
-             + I(age * nodegr) + I(educ * re74)
-             + I(educ * re75),
-             match.out = match.GA, 
-             nboots = 1000, data = lalonde)
-
-
-
-## ## ## ## ## ## ## ## ## ## ##
 # TEST FUNCTIONS            ####
 ## ## ## ## ## ## ## ## ## ## ##
 
@@ -174,6 +115,9 @@ GA1.rosenbrock <- genoud(ros, nvars = 2, max = FALSE,
                                           nrow = 2, byrow = T),
                          pop.size = 3000, max.generations = 100,
                          BFGS = F)
+GA1.sol <- GA1.rosenbrock$par
+GA1.solvalue <- GA1.rosenbrock$value
+rosenbrock(GA1.sol[1], GA1.sol[2]) == GA1.solvalue
 
 
 # .. Using ga() function ####
@@ -409,11 +353,13 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
   return(GA.out)
 }
 
-rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin", 
-                          "roulette", "prop.linear.scaling",
-                          "prob.mutation", "prob.crossover",
-                          "percent.elites", "selection", 
-                          "plot.pop.evol", "plot.fitness.evol")))
+
+# .. Results ####
+# rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin", 
+#                           "roulette", "prop.linear.scaling",
+#                           "prob.mutation", "prob.crossover",
+#                           "percent.elites", "selection", 
+#                           "plot.pop.evol", "plot.fitness.evol")))
 
 GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
                lower = -10, upper = 10, selection = prop.linear.scaling,
@@ -426,16 +372,16 @@ plot.fitness.evol(GA3.claw, filter = T,
                   gen.sequence = c(1, seq(10, 100, by = 10)))
 
 GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
-                     pop.size = 50, max.iter = 10,
+                     pop.size = 500, max.iter = 100,
                      lower = c(-2, -1), upper = c(2, 3),
                      selection = prop.linear.scaling,
                      keep.track = T)
 GA3.rosenbrock$solution
 GA3.rosenbrock$fitness.value
 plot.pop.evol(GA3.rosenbrock, filter = T, 
-              gen.sequence = c(1, 100))
+              gen.sequence = c(1, seq(10, 100, by = 10)))
 plot.fitness.evol(GA3.rosenbrock, filter = T, 
-                  gen.sequence = c(1, 10, 20, 50, 100, 200, 300, 400, 500))
+                  gen.sequence = c(1, seq(10, 100, by = 10)))
 
 GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]), 
                     pop.size = 500, max.iter = 100,
@@ -464,66 +410,71 @@ plot.fitness.evol(GA3.rastrigin, filter = T,
 
 
 ## ## ## ## ## ## ## ## ## ## ##
+# MATCHING                  ####
+## ## ## ## ## ## ## ## ## ## ##
+
+# .. Data ####
+
+data("lalonde") # From Matching
+attach(lalonde)
+Y <- lalonde$re78
+D <- lalonde$treat
+X <- cbind(age, educ, black, hisp, married, 
+           nodegr, re74, re75, u74, u75)
+
+
+# .. Propensity Score Matching ####
+glm <- glm(treat ~ age + educ + black + hisp
+           + married + nodegr + re74 + re75, 
+           family = binomial, data = lalonde)
+match.ps <- Match(Y = Y, Tr = D, X = glm$fitted)
+MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+             + black + hisp + married + nodegr 
+             + re74 + I(re74^2) + re75 + I(re75^2) 
+             + u74 + u75 + I(re74 * re75)
+             + I(age * nodegr) + I(educ * re74)
+             + I(educ * re75),
+             match.out = match.ps, 
+             nboots = 1000, data = lalonde)
+
+
+# .. Genetic Matching ####
+BalanceMatrix <- cbind(age, I(age^2), educ, I(educ^2), 
+                       black, hisp, married, nodegr, 
+                       re74, I(re74^2), re75, I(re75^2), 
+                       u74, u75, I(re74 * re75), 
+                       I(age * nodegr), I(educ * re74), 
+                       I(educ * re75))
+GA.out <- GenMatch(Tr = D, X = X, 
+                   #BalanceMatrix = BalanceMatrix, 
+                   pop.size = 100,
+                   loss = 2)
+match.GA <- Match(Y = Y, Tr = D, X = X, 
+                  Weight.matrix = GA.out)
+# wmatrix <- GA.out$Weight.matrix
+# match.GA <- Match(Y = Y, Tr = D, X = X, 
+#                   Weight.matrix = wmatrix)
+MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+             + black + hisp + married + nodegr 
+             + re74 + I(re74^2) + re75 + I(re75^2) 
+             + u74 + u75 + I(re74 * re75)
+             + I(age * nodegr) + I(educ * re74)
+             + I(educ * re75),
+             match.out = match.GA, 
+             nboots = 1000, data = lalonde)
+
+
+
+## ## ## ## ## ## ## ## ## ## ##
 # GENETIC MATCHING          ####
 ## ## ## ## ## ## ## ## ## ## ##
 
+# .. Objective function ####
 
-matching <- function(x){
 
-  D <- as.double(lalonde$treat)
-  X <- cbind(lalonde$age, lalonde$educ, lalonde$black, lalonde$hisp, 
-             lalonde$married, lalonde$nodegr, lalonde$re74, lalonde$re75,
-             lalonde$u74, lalonde$u75)
-  
-  nvars <- ncol(X)
-  wmatrix <- diag(x, nrow = nvars)
-  
-  match.init <- Match(Tr = D, X = X,
-                      Weight.matrix = wmatrix)
-  matched.data <- match.init$mdata$X
-  index.treated <- match.init$index.treated
-  index.control <- match.init$index.control
-  weights <- match.init$weights
-  sum(weights) == 185
-  
-  Tr <- X[index.treated,]
-  Co <- X[index.control,]
-  
-  nobs <- nrow(matched.data)
-  S <- cov(X)
-  S.chol <- chol(S)
-  
-  paired.t.test <- function(Tr, Co, weights){
-    nobs <- length(Tr)
-    dif <- Tr - Co
-    estimate <- sum(dif * weights)/sum(weights)
-    var <- sum(((dif - estimate)^2) * weights)/(sum(weights) * sum(weights))
-    
-    if (estimate == 0 && var == 0){
-      return(1)
-    }
-
-    statistic <- estimate/sqrt(var)
-    p.val <- (1 - pt(abs(statistic), df = nobs-1))*2
-    return(p.val)
-  }
-  t.test.out <- NULL
-  
-  for (v in 1:nvars){
-    t.test.out[v] <- paired.t.test(X[, v][index.treated],
-                                   X[, v][index.control],
-                                   weights = weights)
-  }
-  
-  loss.func <- min(t.test.out)
-  #d <- t.test.out
-  #distance <- sqrt(t(d) %*% t(S.chol) %*% wmatrix %*% S.chol %*% d)
-  
-  return(loss.func)
-}
-
+# .. Results ####
 GA.out <- GA(fitness.func = function(x) -matching(x), 
-   pop.size = 500, max.iter = 2,
+   pop.size = 100, max.iter = 2,
    lower = rep(1, 10), upper = rep(1000, 10),
    keep.track = T)
 GA.out$solution
@@ -537,5 +488,8 @@ mine <- MatchBalance(treat ~ age + educ + black + hisp
              match.out = match.GA, 
              nboots = 1000, data = lalonde)
 
+treated.obs <- as.data.frame(match.GA$mdata$X[match.GA$index.treated, ])
+control.obs <- as.data.frame(match.GA$mdata$X[match.GA$index.control, ])
 
-
+qqplot(lalonde$educ[treat == 1], lalonde$educ[treat == 0])
+qqplot(treated.obs$educ, control.obs$educ)
