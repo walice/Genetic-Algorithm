@@ -31,14 +31,18 @@ setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232")
 #install.packages("GA")
 #devtools::install_github('drizztxx/gatbxr')
 #install.packages("Matching")
+#install.packages("MatchIt")
 #install.packages("nor1mix")
 #install.packages("rgenoud")
 library(genalg)
 library(GA)
 library(gatbxr)
 library(Matching)
+#library(MatchIt)
 library(nor1mix)
+library(reshape2)
 library(rgenoud)
+library(tidyverse)
 
 
 
@@ -46,7 +50,7 @@ library(rgenoud)
 # DATA                      ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-data("lalonde")
+data("lalonde") # From Matching
 attach(lalonde)
 Y <- lalonde$re78
 Tr <- lalonde$treat
@@ -58,7 +62,7 @@ Tr <- lalonde$treat
 ## ## ## ## ## ## ## ## ## ## ##
 
 # .. Propensity Score Matching ####
-glm <- glm(Tr ~ age + educ + black + hisp 
+glm <- glm(treat ~ age + educ + black + hisp
            + married + nodegr + re74 + re75, 
            family = binomial, data = lalonde)
 match.ps <- Match(Y = Y, Tr = Tr, X = glm$fitted)
@@ -87,6 +91,9 @@ GA <- GenMatch(Tr = Tr, X = X,
                pop.size = 1000)
 match.GA <- Match(Y = Y, Tr = Tr, X = X, 
                   Weight.matrix = GA)
+wmatrix <- GA$Weight.matrix
+match.GA <- Match(Y = Y, Tr = Tr, X = X, 
+                  Weight.matrix = wmatrix)
 MatchBalance(Tr ~ age + I(age^2) + educ + I(educ^2) 
              + black + hisp + married + nodegr 
              + re74 + I(re74^2) + re75 + I(re75^2) 
@@ -148,15 +155,31 @@ persp3D(x1, x2, y)
 ## ## ## ## ## ## ## ## ## ## ##
 
 # .. Using genoud() function ####
-GA1.claw <- genoud(claw, nvars = 1, max = TRUE, pop.size = 3000)
+GA1.claw <- genoud(claw, nvars = 1, max = TRUE, pop.size = 3000,
+                   BFGS = FALSE)
 GA1.sol <- GA1.claw$par
 GA1.solvalue <- GA1.claw$value
 claw(GA1.sol) == GA1.solvalue
 
+ros <- function(sol){
+  x1 <- sol[1]
+  x2 <- sol[2]
+  a <- 1
+  b <- 100
+  f <- (a - x1)^2 + b*(x2 - x1^2)^2
+  return(f)
+}
+GA1.rosenbrock <- genoud(ros, nvars = 2, max = FALSE,
+                         Domains = matrix(c(-2, 2, -1, 3), 
+                                          nrow = 2, byrow = T),
+                         pop.size = 3000, max.generations = 100,
+                         BFGS = F)
+
 
 # .. Using ga() function ####
 GA2.claw <- ga(type = "real-valued", 
-               fitness = claw, lower = -3, upper = 3)
+               fitness = claw, lower = -3, upper = 3,
+               keepBest = TRUE)
 summary(GA2.claw)
 GA2.pop <- GA2.claw@population
 GA2.fitness <- GA2.claw@fitness
@@ -166,21 +189,10 @@ GA2.sol <- GA2.claw@solution
 GA2.solvalue <- GA2.claw@fitnessValue
 claw(GA2.sol) == GA2.solvalue
 
-GA2.rastrigin <- ga(type = "real-valued",
-                    fitness = function(x) -rastrigin(x[1], x[2]),
-                    lower = c(-5.12, -5.12), upper = c(5.12, 5.12))
-summary(GA2.rastrigin)
-GA2.pop <- GA2.rastrigin@population
-GA2.fitness <- GA2.rastrigin@fitness
-plot(GA2.pop)
-plot(GA2.fitness)
-GA2.sol <- GA2.rastrigin@solution
-GA2.solvalue <- GA2.rastrigin@fitnessValue
-rastrigin(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
-
 GA2.rosenbrock <- ga(type = "real-valued",
-                    fitness = function(x) -rosenbrock(x[1], x[2]),
-                    lower = c(-2, -1), upper = c(2, 3))
+                    fitness = function(sol) -ros(sol),
+                    lower = c(-2, -1), upper = c(2, 3),
+                    keepBest = TRUE, seed = 232)
 summary(GA2.rosenbrock)
 GA2.pop <- GA2.rosenbrock@population
 GA2.fitness <- GA2.rosenbrock@fitness
@@ -189,6 +201,19 @@ plot(GA2.fitness)
 GA2.sol <- GA2.rosenbrock@solution
 GA2.solvalue <- GA2.rosenbrock@fitnessValue
 rosenbrock(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
+
+GA2.rastrigin <- ga(type = "real-valued",
+                    fitness = function(x) -rastrigin(x[1], x[2]),
+                    lower = c(-5.12, -5.12), upper = c(5.12, 5.12),
+                    seed = 232)
+summary(GA2.rastrigin)
+GA2.pop <- GA2.rastrigin@population
+GA2.fitness <- GA2.rastrigin@fitness
+plot(GA2.pop)
+plot(GA2.fitness)
+GA2.sol <- GA2.rastrigin@solution
+GA2.solvalue <- GA2.rastrigin@fitnessValue
+rastrigin(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
 
 
 
@@ -201,30 +226,49 @@ rosenbrock(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
 
 # Roulette wheel selection
 roulette <- function(pop, fitness){
+  pop <- pop
+  fitness <- fitness
+  pop.size <- nrow(pop)
   prob <- abs(fitness)/sum(abs(fitness))
   prob <- pmin(pmax(0, prob/sum(prob)), 1, na.rm = TRUE)
   select <- sample(1:pop.size, size = pop.size,
                    prob = prob, replace = T)
-  pop <- pop[select]
-  return(pop)
+  pop <- pop[select, ]
+  return(as.matrix(pop))
 }
 
-roulette <- function(pop, fitness){
-  previous_prob <- 0
-  
-  for (i in 1:pop.size){
-    prob[i] <- previous_prob + fitness[i]/sum(fitness)
-    previous_prob <- prob[i]
+# Selection proportional to fitness with linear scaling
+prop.linear.scaling <- function(pop, fitness){
+  pop <- pop
+  fitness <- fitness
+  pop.size <- nrow(pop)
+  fitness.min <- min(fitness, na.rm = T)
+  if (fmin <- 0){
+    fitness <- fitness - fitness.min
+    fitness.min <- min(fitness, na.rm = T)
   }
+  fitness.mean <- mean(fitness, na.rm = T)
+  fitness.max <- max(fitness, na.rm = T)
   
-  for (i in 1:pop.size){
-    u <- runif(1)
-    if (length(which(prob < u)) == 0){
-      pop[i] <- pop[1]
-    } else {
-      pop[i] <- pop[max(which(prob < u))]
-    }
+  sfactor <- 2
+  eps <- sqrt(.Machine$double.eps)
+  # transform f -> f' = a*f + b such that
+  if(fitness.min > (sfactor*fitness.mean - fitness.max)/(sfactor-1)){
+    delta <- fitness.max - fitness.mean
+    a <- (sfactor - 1.0)*fitness.mean/delta
+    b <- fitness.mean * (fitness.max - sfactor*fitness.mean)/delta 
+  } else {
+    delta <- fitness.mean - fitness.min
+    a <- fitness.mean/delta
+    b <- -1*fitness.min*fitness.mean/delta 
   }
+  fscaled <- a*fitness + b
+  prob <- abs(fscaled)/sum(abs(fscaled), na.rm = TRUE)
+  prob[is.na(prob)] <- eps
+  prob <- pmin(pmax(0.0, prob/sum(prob)), 1.0)
+  select <- sample(1:pop.size, size = pop.size, 
+                   prob = prob, replace = TRUE)
+  pop <- as.matrix(pop[select, ])
   return(pop)
 }
 
@@ -232,64 +276,266 @@ roulette <- function(pop, fitness){
 # .. Algorithm ####
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
-               selection = roulette){
+               selection = prop.linear.scaling, prob.crossover = 0.8, 
+               prob.mutation = 0.1, percent.elites = 5,
+               keep.track = FALSE, seed = NULL){
   
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
   # Initialize empty list
   GA.out <- list()
-  fitness <- NULL
-  prob <- NULL
+  pop.size <- pop.size
   
   # Take suggestions for initial population,
   # else sample from uniform
   if (!missing(init.pop)){
-    pop <- init.pop
+    pop <- as.matrix(init.pop)
+    nvars <- ncol(pop)
   } else {
-    pop <- runif(pop.size, lower, upper)
+    nvars <- length(lower)
+    pop <- matrix(NA, 
+                  nrow = pop.size, ncol = nvars)
+    for(j in 1:nvars){
+      pop[, j] <- runif(pop.size, lower[j], upper[j]) 
+      }
+  }
+  
+  if (keep.track){
+    pop.evolution <- NULL
+    fitness.evolution <- NULL
+    best.individual <- NULL
   }
   
   iter <- 0
-  while (iter < max.iter){
-    
-    iter <- iter + 1
-    cat("Iteration: ", iter, "\n")
+  for (iter in 1:max.iter){
     
     # Evaluate fitness
-    for (i in 1:pop.size) {
-      fitness[i] <- fitness.func(pop[i])
+    fitness <- rep(NA, pop.size)
+    for(j in 1:nvars){
+      for (i in 1:pop.size) {
+        fitness[i] <- fitness.func(pop[i,])
+      }
     }
+    
+    # Sort from best individuals to worst
+    order.dec <- order(fitness, decreasing = T)
+    pop.sorted.d <- as.matrix(pop[order.dec, ])
+    fitness.sorted.d <- fitness[order.dec]
     
     # Selection
     pop <- selection(pop, fitness)
     
-    # Crossover
-    parent_A <- pop[1:(pop.size/2)]
-    parent_B <- pop[(pop.size/2+1):pop.size]
-    p <- runif(1)
-    offspring_A <- p*parent_A + (1-p)*parent_B
-    offspring_B <- p*parent_B + (1-p)*parent_A
-    
-    pop <- c(offspring_A, offspring_B)
+    # Mating pool
+    nmating <- floor(pop.size/2)
+    mating.pool <- matrix(sample(1:(2*nmating), 
+                                 size = (2*nmating)), 
+                          ncol = 2)
+
+    for (i in 1:length(nmating)){
+      if(prob.crossover > runif(1)){
+        parents.id <- mating.pool[i,]
+        parents <- pop[parents.id, ]
+        if (is.null(ncol(parents))){
+          n <- 1
+        } else {
+          n <- ncol(parents)
+        }
+        offspring <- matrix(NA, nrow = 2, ncol = n)
+        p <- runif(n)
+        parents <- as.matrix(parents)
+        offspring[1,] <- p*parents[1,] + (1-p)*parents[2,]
+        offspring[2,] <- p*parents[2,] + (1-p)*parents[1,]
+        pop[parents.id,] <- offspring
+      }
+    }
     
     # Mutation
-    pop <- runif(pop.size, min(pop), max(pop))
-    
-    for (i in 1:pop.size) {
-      fitness[i] <- fitness.func(pop[i])
+    for (i in 1:length(pop.size)){
+      if(prob.mutation > runif(1)){
+        mutant <- pop[i, ]
+        n <- length(mutant)
+        j <- sample(1:n, size = 1)
+        mutant[j] <- runif(1, lower[j], upper[j])
+        pop[i, ] <- mutant
+      }
     }
+    
+    for(j in 1:nvars){
+      for (i in 1:pop.size) {
+        fitness[i] <- fitness.func(pop[i,])
+      }
+    }
+    
+    # Elites
+    elites <- percent.elites/100*pop.size
+    order.asc <- order(fitness, na.last = TRUE)
+    unique.inds <- which(!duplicated(pop.sorted.d, margin = 1))
+    pop[order.asc[1:elites],] <- pop.sorted.d[unique.inds[1:elites],]
+    fitness[order.asc[1:elites]] <- fitness.sorted.d[unique.inds[1:elites]]
+    
+    if(keep.track){
+      pop.evolution <- cbind(pop.evolution, pop)
+      fitness.evolution <- cbind(fitness.evolution, fitness)
+      best.individual <- rbind(best.individual,
+                               unique(pop[which(fitness == max(fitness)),]))
+    }
+    
+    cat("Iteration: ", iter, "\n")
     cat("Fitness value: ", max(fitness), "\n")
   }
   
   fitness.value <- max(fitness)
-  solution <- pop[which(fitness == fitness.value)]
+  solution <- unique(pop[which(fitness == fitness.value),])
   
   GA.out$population <- pop
   GA.out$fitness <- fitness
+  GA.out$mean.population <- mean(pop)
+  GA.out$mean.fitness <- mean(fitness)
   GA.out$solution <- solution
   GA.out$fitness.value <- fitness.value
+  GA.out$pop.size <- pop.size
   
+  if (keep.track){
+    colnames(pop.evolution) <- paste0(rep(seq_len(max.iter), each = nvars), 
+                                      "_V", rep(1:nvars))
+    colnames(fitness.evolution) <- seq_len(max.iter)
+    colnames(best.individual) <- paste0("V", rep(1:nvars))
+    GA.out$pop.evolution <- pop.evolution
+    GA.out$fitness.evolution <- fitness.evolution
+    GA.out$best.individual <- best.individual
+  }
+    
   return(GA.out)
 }
 
-GA3 <- GA(claw, pop.size = 50, max.iter = 100,
-   lower = -3, upper = 3)
-plot(GA3$fitness)
+rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin", 
+                          "roulette", "prop.linear.scaling",
+                          "prob.mutation", "prob.crossover",
+                          "percent.elites", "selection", 
+                          "plot.pop.evol", "plot.fitness.evol")))
+
+GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
+               lower = -10, upper = 10, selection = prop.linear.scaling,
+               keep.track = T)
+GA3.claw$solution
+GA3.claw$fitness.value
+plot.pop.evol(GA3.claw, filter = T, 
+              gen.sequence = c(1, seq(10, 100, by = 10)))
+plot.fitness.evol(GA3.claw, filter = T, 
+                  gen.sequence = c(1, seq(10, 100, by = 10)))
+
+GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
+                     pop.size = 50, max.iter = 10,
+                     lower = c(-2, -1), upper = c(2, 3),
+                     selection = prop.linear.scaling,
+                     keep.track = T)
+GA3.rosenbrock$solution
+GA3.rosenbrock$fitness.value
+plot.pop.evol(GA3.rosenbrock, filter = T, 
+              gen.sequence = c(1, 100))
+plot.fitness.evol(GA3.rosenbrock, filter = T, 
+                  gen.sequence = c(1, 10, 20, 50, 100, 200, 300, 400, 500))
+
+GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]), 
+                    pop.size = 500, max.iter = 100,
+                    lower = c(-5.12, -5.12), upper = c(5.12, 5.12),
+                    keep.track = T)
+GA3.rastrigin$solution
+GA3.rastrigin$fitness.value
+plot.pop.evol(GA3.rastrigin, filter = T, 
+              gen.sequence = c(1, seq(10, 100, by = 10)))
+plot.fitness.evol(GA3.rastrigin, filter = T, 
+                  gen.sequence = c(1, seq(10, 100, by = 10)))
+
+# x = seq(-3,3, by = 0.01)
+# y <- NULL
+# for (i in 1:length(x)) {y[i] <- claw(x[i])}
+# claw <- data.frame(x = x, y = y)
+# 
+# best <- GA3.claw$best.individual
+# ggplot(claw, aes(x = x, y = y)) +
+#   geom_line() +
+#   geom_point(x = claw$x[which(claw$y == max(claw$y))],
+#              y = max(claw$y),
+#              size = 2, col = "red") +
+#   geom_point
+
+
+
+## ## ## ## ## ## ## ## ## ## ##
+# GENETIC MATCHING          ####
+## ## ## ## ## ## ## ## ## ## ##
+
+
+matching <- function(x){
+
+  D <- as.double(lalonde$treat)
+  X <- cbind(lalonde$age, lalonde$educ, lalonde$black, lalonde$hisp, 
+             lalonde$married, lalonde$nodegr, lalonde$re74, lalonde$re75,
+             lalonde$u74, lalonde$u75)
+  
+  nvars <- ncol(X)
+  wmatrix <- diag(x, nrow = nvars)
+  
+  match.init <- Match(Tr = D, X = X,
+                      Weight.matrix = wmatrix)
+  matched.data <- match.init$mdata$X
+  index.treated <- match.init$index.treated
+  index.control <- match.init$index.control
+  weights <- match.init$weights
+  sum(weights) == 185
+  
+  Tr <- X[index.treated,]
+  Co <- X[index.control,]
+  
+  nobs <- nrow(matched.data)
+  S <- cov(X)
+  S.chol <- chol(S)
+  
+  paired.t.test <- function(Tr, Co, weights){
+    nobs <- length(Tr)
+    dif <- Tr - Co
+    estimate <- sum(dif * weights)/sum(weights)
+    var <- sum(((dif - estimate)^2) * weights)/(sum(weights) * sum(weights))
+    
+    if (estimate == 0 && var == 0){
+      return(1)
+    }
+
+    statistic <- estimate/sqrt(var)
+    p.val <- (1 - pt(abs(statistic), df = nobs-1))*2
+    return(p.val)
+  }
+  t.test.out <- NULL
+  
+  for (v in 1:nvars){
+    t.test.out[v] <- paired.t.test(X[, v][index.treated],
+                                   X[, v][index.control],
+                                   weights = weights)
+  }
+  
+  loss.func <- min(t.test.out)
+  #d <- t.test.out
+  #distance <- sqrt(t(d) %*% t(S.chol) %*% wmatrix %*% S.chol %*% d)
+  
+  return(loss.func)
+}
+
+GA.out <- GA(fitness.func = function(x) -matching(x), 
+   pop.size = 500, max.iter = 2,
+   lower = rep(1, 10), upper = rep(1000, 10),
+   keep.track = T)
+GA.out$solution
+wmatrix <- diag(x = as.numeric(GA.out$solution))
+
+match.GA <- Match(Y = lalonde$re78, Tr = lalonde$treat,
+                  X = X, 
+                  Weight.matrix = wmatrix)
+mine <- MatchBalance(treat ~ age + educ + black + hisp
+                     + married + nodegr + re74 + re75,
+             match.out = match.GA, 
+             nboots = 1000, data = lalonde)
+
+
+
