@@ -221,7 +221,6 @@ prop.linear.scaling <- function(pop, fitness){
   
   sfactor <- 2
   eps <- sqrt(.Machine$double.eps)
-  # transform f -> f' = a*f + b such that
   if(fitness.min > (sfactor*fitness.mean - fitness.max)/(sfactor-1)){
     delta <- fitness.max - fitness.mean
     a <- (sfactor - 1.0)*fitness.mean/delta
@@ -241,12 +240,32 @@ prop.linear.scaling <- function(pop, fitness){
   return(pop)
 }
 
+# Simple crossover
+simple.crossover <- function(parents){
+  parents <- parents
+  
+  if (is.null(ncol(parents))){
+    n <- 1
+  } else {
+    n <- ncol(parents)
+  }
+  offspring <- matrix(NA, nrow = 2, ncol = n)
+  p <- runif(n)
+  parents <- as.matrix(parents)
+  offspring[1,] <- p*parents[1,] + (1-p)*parents[2,]
+  offspring[2,] <- p*parents[2,] + (1-p)*parents[1,]
+  
+  return(offspring)
+}
+
 
 # .. Algorithm ####
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
-               selection = prop.linear.scaling, prob.crossover = 0.8, 
-               prob.mutation = 0.1, percent.elites = 5,
+               selection = prop.linear.scaling, 
+               crossover = simple.crossover,
+               prob.crossover = 0.8, prob.mutation = 0.1, 
+               percent.elites = 5,
                keep.track = FALSE, seed = NULL){
   
   if(!is.null(seed)){
@@ -305,16 +324,17 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
       if(prob.crossover > runif(1)){
         parents.id <- mating.pool[i,]
         parents <- pop[parents.id, ]
-        if (is.null(ncol(parents))){
-          n <- 1
-        } else {
-          n <- ncol(parents)
-        }
-        offspring <- matrix(NA, nrow = 2, ncol = n)
-        p <- runif(n)
-        parents <- as.matrix(parents)
-        offspring[1,] <- p*parents[1,] + (1-p)*parents[2,]
-        offspring[2,] <- p*parents[2,] + (1-p)*parents[1,]
+        # if (is.null(ncol(parents))){
+        #   n <- 1
+        # } else {
+        #   n <- ncol(parents)
+        # }
+        # offspring <- matrix(NA, nrow = 2, ncol = n)
+        # p <- runif(n)
+        # parents <- as.matrix(parents)
+        # offspring[1,] <- p*parents[1,] + (1-p)*parents[2,]
+        # offspring[2,] <- p*parents[2,] + (1-p)*parents[1,]
+        offspring <- crossover(parents)
         pop[parents.id,] <- offspring
       }
     }
@@ -330,13 +350,16 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
       }
     }
     
+    # Evaluate fitness
     for(j in 1:nvars){
       for (i in 1:pop.size) {
         fitness[i] <- fitness.func(pop[i,])
       }
     }
     
-    # Elites
+    # Elitism
+    # Replace worst individuals with % of best individuals
+    # specified in elites
     elites <- percent.elites/100*pop.size
     order.asc <- order(fitness, na.last = TRUE)
     unique.inds <- which(!duplicated(pop.sorted.d, margin = 1))
