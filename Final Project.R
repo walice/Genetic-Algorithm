@@ -270,12 +270,23 @@ blend.crossover <- function(parents, params){
   return(offspring)
 }
 
+# Random uniform mutation
+unif.mutation <- function(mutant, params){
+  mutant <- mutant
+  params <- params
+  n <- length(mutant)
+  j <- sample(1:n, size = 1)
+  mutant[j] <- runif(1, params$lower[j], params$upper[j])
+  
+  return(mutant)
+}
 
 # .. Algorithm ####
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
                selection = prop.linear.scaling, 
                crossover = blend.crossover,
+               mutation = unif.mutation,
                prob.crossover = 0.8, prob.mutation = 0.1, 
                percent.elites = 5,
                keep.track = FALSE, seed = NULL){
@@ -349,9 +360,11 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     for (i in 1:length(pop.size)){
       if(prob.mutation > runif(1)){
         mutant <- pop[i, ]
-        n <- length(mutant)
-        j <- sample(1:n, size = 1)
-        mutant[j] <- runif(1, lower[j], upper[j])
+        
+        mutant <- mutation(mutant, params)
+        # n <- length(mutant)
+        # j <- sample(1:n, size = 1)
+        # mutant[j] <- runif(1, lower[j], upper[j])
         pop[i, ] <- mutant
       }
     }
