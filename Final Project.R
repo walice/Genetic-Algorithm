@@ -34,6 +34,7 @@ setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project")
 #install.packages("MatchIt")
 #install.packages("nor1mix")
 #install.packages("rgenoud")
+#install.packages("VGAM")
 library(genalg)
 library(GA)
 library(gatbxr)
@@ -43,6 +44,7 @@ library(nor1mix)
 library(reshape2)
 library(rgenoud)
 library(tidyverse)
+library(VGAM) # For Gaussian error function
 
 
 
@@ -281,12 +283,60 @@ unif.mutation <- function(mutant, params){
   return(mutant)
 }
 
+# Boundary mutation
+boundary.mutation <- function(mutant, params){
+  mutant <- mutant
+  params <- params
+  n <- length(mutant)
+  j <- sample(1:n, size = 1)
+  p <- runif(1)
+  if (p >= 0.5){
+    mutant[j] <- params$upper[j]
+  } else {
+    mutant[j] <- params$lower[j]
+  }
+  
+  return(mutant)
+}
+
+# Gaussian mutation
+gaussian.mutation <- function(mutant, params){
+  mutant <- mutant
+  params <- params
+  n <- length(mutant)
+  j <- sample(1:n, size = 1)
+  
+  a <- params$lower[j]
+  b <- params$upper[j]
+  sigma <- 1/(b - a)
+  u.l <- 0.5*(erf((a-mutant[j])/(sqrt(2)*(b-a)*sigma))+1)
+  u.u <- 0.5*(erf((b-mutant[j])/(sqrt(2)*(b-a)*sigma))+1)
+  p <- runif(1)
+  if (p <= 0.5){
+    u <- 2*u.l*(1-2*p)
+  } else {
+    u <- 2*u.u*(2*p-1)
+  }
+  if (u < -1 | u > 1){
+    u <- 0 #erf is not defined ==> erf(0) means no mutation
+  }
+  mutant[j] <- mutant[j] + sqrt(2)*sigma*(b-a)*erf(u, inverse = T)
+  
+  # if(!is.finite(result)){
+  #   mutant[j] <- mutant[j]
+  # } else {
+  #   mutant[j] <- result
+  # }
+  return(mutant)
+}
+
+
 # .. Algorithm ####
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
                selection = prop.linear.scaling, 
                crossover = blend.crossover,
-               mutation = unif.mutation,
+               mutation = gaussian.mutation,
                prob.crossover = 0.8, prob.mutation = 0.1, 
                percent.elites = 5,
                keep.track = FALSE, seed = NULL){
@@ -425,6 +475,8 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
 rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin",
                           "roulette", "prop.linear.scaling",
                           "simple.crossover", "blend.crossover",
+                          "unif.mutation", "boundary.mutation",
+                          "gaussian.mutation",
                           "prob.mutation", "prob.crossover",
                           "percent.elites", "selection",
                           "plot.pop.evol", "plot.fitness.evol")))
