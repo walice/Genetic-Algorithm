@@ -203,6 +203,7 @@ roulette <- function(pop, fitness){
   select <- sample(1:pop.size, size = pop.size,
                    prob = prob, replace = T)
   pop <- pop[select, ]
+  
   return(as.matrix(pop))
 }
 
@@ -218,7 +219,6 @@ prop.linear.scaling <- function(pop, fitness){
   }
   fitness.mean <- mean(fitness, na.rm = T)
   fitness.max <- max(fitness, na.rm = T)
-  
   sfactor <- 2
   eps <- sqrt(.Machine$double.eps)
   if(fitness.min > (sfactor*fitness.mean - fitness.max)/(sfactor-1)){
@@ -237,23 +237,35 @@ prop.linear.scaling <- function(pop, fitness){
   select <- sample(1:pop.size, size = pop.size, 
                    prob = prob, replace = TRUE)
   pop <- as.matrix(pop[select, ])
+  
   return(pop)
 }
 
 # Simple crossover
-simple.crossover <- function(parents){
+simple.crossover <- function(parents, params){
   parents <- parents
-  
-  if (is.null(ncol(parents))){
-    n <- 1
-  } else {
-    n <- ncol(parents)
-  }
-  offspring <- matrix(NA, nrow = 2, ncol = n)
-  p <- runif(n)
-  parents <- as.matrix(parents)
+  nvars <- ncol(parents)
+  offspring <- matrix(NA, nrow = 2, ncol = nvars)
+  p <- runif(nvars)
   offspring[1,] <- p*parents[1,] + (1-p)*parents[2,]
   offspring[2,] <- p*parents[2,] + (1-p)*parents[1,]
+  
+  return(offspring)
+}
+
+# Blended crossover
+blend.crossover <- function(parents, params){
+  parents <- parents
+  params <- params
+  nvars <- ncol(parents)
+  offspring <- matrix(NA, nrow = 2, ncol = nvars)
+  alpha <- 0.5
+  x.l <- parents[1,] - alpha*(parents[2,] - parents[1,])
+  x.u <- parents[2,] + alpha*(parents[2,] - parents[1,])
+  for (v in 1:nvars){
+    offspring[,v] <- runif(2, min(x.l[v], params$lower[v]),
+                           max(x.u[v], params$upper[v]))
+  }
   
   return(offspring)
 }
@@ -263,7 +275,7 @@ simple.crossover <- function(parents){
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
                selection = prop.linear.scaling, 
-               crossover = simple.crossover,
+               crossover = blend.crossover,
                prob.crossover = 0.8, prob.mutation = 0.1, 
                percent.elites = 5,
                keep.track = FALSE, seed = NULL){
@@ -273,6 +285,9 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
   }
   # Initialize empty list
   GA.out <- list()
+  params <- list()
+  params$lower <- lower
+  params$upper <- upper
   pop.size <- pop.size
   
   # Take suggestions for initial population,
@@ -319,22 +334,13 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     mating.pool <- matrix(sample(1:(2*nmating), 
                                  size = (2*nmating)), 
                           ncol = 2)
-
+    
+    # Crossover
     for (i in 1:length(nmating)){
       if(prob.crossover > runif(1)){
         parents.id <- mating.pool[i,]
-        parents <- pop[parents.id, ]
-        # if (is.null(ncol(parents))){
-        #   n <- 1
-        # } else {
-        #   n <- ncol(parents)
-        # }
-        # offspring <- matrix(NA, nrow = 2, ncol = n)
-        # p <- runif(n)
-        # parents <- as.matrix(parents)
-        # offspring[1,] <- p*parents[1,] + (1-p)*parents[2,]
-        # offspring[2,] <- p*parents[2,] + (1-p)*parents[1,]
-        offspring <- crossover(parents)
+        parents <- pop[parents.id, , drop = FALSE]
+        offspring <- crossover(parents, params)
         pop[parents.id,] <- offspring
       }
     }
@@ -403,11 +409,12 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
 
 
 # .. Results ####
-# rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin", 
-#                           "roulette", "prop.linear.scaling",
-#                           "prob.mutation", "prob.crossover",
-#                           "percent.elites", "selection", 
-#                           "plot.pop.evol", "plot.fitness.evol")))
+rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin",
+                          "roulette", "prop.linear.scaling",
+                          "simple.crossover", "blend.crossover",
+                          "prob.mutation", "prob.crossover",
+                          "percent.elites", "selection",
+                          "plot.pop.evol", "plot.fitness.evol")))
 
 GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
                lower = -10, upper = 10, selection = prop.linear.scaling,
