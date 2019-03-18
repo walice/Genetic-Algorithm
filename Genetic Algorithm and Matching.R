@@ -400,10 +400,8 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     
     # Evaluate fitness
     fitness <- rep(NA, pop.size)
-    for(j in 1:nvars){
-      for (i in 1:pop.size) {
-        fitness[i] <- fitness.func(pop[i,])
-      }
+    for (i in 1:pop.size) {
+      fitness[i] <- fitness.func(pop[i,])
     }
     
     # Sort from best individuals to worst
@@ -440,10 +438,8 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     }
     
     # Evaluate fitness
-    for(j in 1:nvars){
-      for (i in 1:pop.size) {
-        fitness[i] <- fitness.func(pop[i,])
-      }
+    for (i in 1:pop.size) {
+      fitness[i] <- fitness.func(pop[i,])
     }
     
     # Elitism
