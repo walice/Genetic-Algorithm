@@ -46,6 +46,7 @@ setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project")
 #install.packages("MatchIt")
 #install.packages("nor1mix")
 #install.packages("rgenoud")
+#install.packages("tictoc")
 #install.packages("VGAM")
 library(genalg)
 library(GA)
@@ -55,6 +56,7 @@ library(Matching)
 library(nor1mix)
 library(reshape2)
 library(rgenoud)
+library(tictoc)
 library(tidyverse)
 library(VGAM) # For Gaussian error function
 
@@ -221,6 +223,8 @@ roulette <- function(pop, fitness){
 
 
 # .. Selection proportional to fitness with linear scaling ####
+# Credit: Luca Scrucca
+# I basically implemented his selection operator from the GA package.
 prop.linear.scaling <- function(pop, fitness){
   pop <- pop
   fitness <- fitness
@@ -350,21 +354,29 @@ gaussian.mutation <- function(mutant, params){
 GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
                selection = prop.linear.scaling, 
-               crossover = blend.crossover,
+               crossover = simple.crossover,
                mutation = gaussian.mutation,
                prob.crossover = 0.8, prob.mutation = 0.1, 
                percent.elites = 5,
                keep.track = FALSE, seed = NULL){
   
+  # Initialize
+  tic("Run-time")
   if(!is.null(seed)){
     set.seed(seed)
   }
-  # Initialize empty list
+  
   GA.out <- list()
   params <- list()
   params$lower <- lower
   params$upper <- upper
   pop.size <- pop.size
+  
+  if (keep.track){
+    pop.evolution <- NULL
+    fitness.evolution <- NULL
+    best.individual <- NULL
+  }
   
   # Take suggestions for initial population,
   # else sample from uniform
@@ -378,12 +390,6 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     for(j in 1:nvars){
       pop[, j] <- runif(pop.size, lower[j], upper[j]) 
       }
-  }
-  
-  if (keep.track){
-    pop.evolution <- NULL
-    fitness.evolution <- NULL
-    best.individual <- NULL
   }
   
   iter <- 0
@@ -425,7 +431,6 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     for (i in 1:length(pop.size)){
       if(prob.mutation > runif(1)){
         mutant <- pop[i, ]
-        
         mutant <- mutation(mutant, params)
         pop[i, ] <- mutant
       }
@@ -447,20 +452,27 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     pop[order.asc[1:elites],] <- pop.sorted.d[unique.inds[1:elites],]
     fitness[order.asc[1:elites]] <- fitness.sorted.d[unique.inds[1:elites]]
     
+    # Keep track of generations
     if(keep.track){
       pop.evolution <- cbind(pop.evolution, pop)
       fitness.evolution <- cbind(fitness.evolution, fitness)
       best.individual <- rbind(best.individual,
                                unique(pop[which(fitness == max(fitness)),]))
+      cat("Iteration: ", iter, "\n",
+          "Fitness value: ", max(fitness), "\n", 
+          "Best individual: ", best.individual[iter,], "\n\n")
+    } else {
+      cat("Iteration: ", iter, "\n",
+          "Fitness value: ", max(fitness), "\n\n")
     }
     
-    cat("Iteration: ", iter, "\n")
-    cat("Fitness value: ", max(fitness), "\n")
   }
   
+  # Determine solution and fitness value
   fitness.value <- max(fitness)
   solution <- unique(pop[which(fitness == fitness.value),])
   
+  # Spit out results
   GA.out$population <- pop
   GA.out$fitness <- fitness
   GA.out$mean.population <- mean(pop)
@@ -478,7 +490,8 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     GA.out$fitness.evolution <- fitness.evolution
     GA.out$best.individual <- best.individual
   }
-    
+  
+  toc()  
   return(GA.out)
 }
 
@@ -499,7 +512,7 @@ rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin",
 
 GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
                lower = -10, upper = 10, selection = prop.linear.scaling,
-               keep.track = T)
+               keep.track = F)
 GA3.claw$solution
 GA3.claw$fitness.value
 plot.pop.evol(GA3.claw, filter = T, 
@@ -544,6 +557,12 @@ Y <- lalonde$re78
 D <- lalonde$treat
 X <- cbind(age, educ, black, hisp, married, 
            nodegr, re74, re75, u74, u75)
+BalanceMatrix <- cbind(age, I(age^2), educ, I(educ^2), 
+                       black, hisp, married, nodegr, 
+                       re74, I(re74^2), re75, I(re75^2), 
+                       u74, u75, I(re74 * re75), 
+                       I(age * nodegr), I(educ * re74), 
+                       I(educ * re75))
 
 
 # .. Propensity Score Matching ####
@@ -562,25 +581,19 @@ MatchBalance(D ~ age + I(age^2) + educ + I(educ^2)
 
 
 # .. Genetic Matching ####
-BalanceMatrix <- cbind(age, I(age^2), educ, I(educ^2), 
-                       black, hisp, married, nodegr, 
-                       re74, I(re74^2), re75, I(re75^2), 
-                       u74, u75, I(re74 * re75), 
-                       I(age * nodegr), I(educ * re74), 
-                       I(educ * re75))
-GA.out <- GenMatch(Tr = D, X = X, 
+Genoud.out <- GenMatch(Tr = D, X = X, 
                    #BalanceMatrix = BalanceMatrix, 
                    pop.size = 100,
                    loss = 2)
-match.GA <- Match(Y = Y, Tr = D, X = X, 
-                  Weight.matrix = GA.out)
+match.Genoud <- Match(Y = Y, Tr = D, X = X, 
+                      Weight.matrix = Genoud.out)
 MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
              + black + hisp + married + nodegr 
              + re74 + I(re74^2) + re75 + I(re75^2) 
              + u74 + u75 + I(re74 * re75)
              + I(age * nodegr) + I(educ * re74)
              + I(educ * re75),
-             match.out = match.GA, 
+             match.out = match.Genoud, 
              nboots = 1000, data = lalonde)
 
 
@@ -589,27 +602,170 @@ MatchBalance(D ~ age + I(age^2) + educ + I(educ^2)
 # GENETIC MATCHING          ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-# .. Objective function ####
+# .. Objective functions ####
+minpval <- function(x){
+  
+  wmatrix <- diag(x, nrow = nvars)
+  
+  # To counter the error that leading minors are not positive.
+  # This happens when the eigenvectors are not positive, and the data is
+  # too noisy to estimate a full covariance matrix. So add a penalty
+  # term to push away from zero.
+  eigenvalues <- eigen(wmatrix, symmetric = TRUE, only.values = TRUE)$values
+  if (min(eigenvalues) < sqrt(.Machine$double.eps)){
+    wmatrix <- wmatrix + diag(nvars) * sqrt(.Machine$double.eps)
+  } 
+  
+  match.init <- Match(Tr = D, X = X,
+                      Weight.matrix = wmatrix)
+  
+  index.treated <- match.init$index.treated
+  index.control <- match.init$index.control
+  Tr <- BalanceVars[index.treated,]
+  Co <- BalanceVars[index.control,]
+  
+  storage <- NULL
+  for (v in 1:nbalvars){
+    storage[v] <- t.test(Tr[,v], Co[,v], paired = T)$p.value
+  }
+  for (v in (nbalvars+1):(nbalvars*2)){
+    storage[v] <- suppressWarnings(ks.test(Tr, Co)$p.value)
+  }
+  
+  loss.func <- min(storage, na.rm = T)
+  
+  return(loss.func)
+}
+
+maxQQdif <- function(x){
+  
+  wmatrix <- diag(x, nrow = nvars)
+  
+  # To counter the error that leading minors are not positive.
+  # This happens when the eigenvectors are not positive, and the data is
+  # too noisy to estimate a full covariance matrix. So add a penalty
+  # term to push away from zero.
+  eigenvalues <- eigen(wmatrix, symmetric = TRUE, only.values = TRUE)$values
+  if (min(eigenvalues) < sqrt(.Machine$double.eps)){
+    wmatrix <- wmatrix + diag(nvars) * sqrt(.Machine$double.eps)
+  } 
+  
+  match.init <- Match(Tr = D, X = X,
+                      Weight.matrix = wmatrix)
+  
+  index.treated <- match.init$index.treated
+  index.control <- match.init$index.control
+  Tr <- BalanceVars[index.treated,]
+  Co <- BalanceVars[index.control,]
+  
+  storage <- NULL
+  for (v in 1:nbalvars){
+    storage[v] <- qqstats(Tr, Co, standardize = T)$mediandiff
+  }
+  
+  loss.func <- max(storage, na.rm = T)
+  
+  return(loss.func)
+}
+
+# .. Variables to seek balance on ####
+Y <- lalonde$re78
+D <- lalonde$treat
+X <- cbind(age, educ, black, hisp, married, 
+           nodegr, re74, re75, u74, u75)
+PropensityScore <- glm(treat ~ age + educ + black + hisp
+                       + married + nodegr + re74 + re75, 
+                       family = binomial, data = lalonde)$fitted
+BalanceVars <- cbind(BalanceMatrix, PropensityScore)
+nvars <- ncol(X)
+nbalvars <- ncol(BalanceVars)
 
 
-# .. Results ####
-GA.out <- GA(fitness.func = function(x) -matching(x), 
-   pop.size = 100, max.iter = 2,
-   lower = rep(1, 10), upper = rep(1000, 10),
-   keep.track = T)
-GA.out$solution
-wmatrix <- diag(x = as.numeric(GA.out$solution))
+# .. Run genetic algorithm to figure out optimal weights ####
+GA.out.pval <- GA(fitness.func = minpval, 
+                  pop.size = 500, max.iter = 5,
+                  lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
+                  keep.track = T, seed = 232)
 
-match.GA <- Match(Y = lalonde$re78, Tr = lalonde$treat,
-                  X = X, 
-                  Weight.matrix = wmatrix)
-mine <- MatchBalance(treat ~ age + educ + black + hisp
-                     + married + nodegr + re74 + re75,
-             match.out = match.GA, 
+GA.out.QQ <- GA(fitness.func = function(x) -maxQQdif(x), 
+                pop.size = 500, max.iter = 5,
+                lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
+                keep.track = T, seed = 232)
+
+save(GA.out.pval, file = "Results/GA.out.pval.RData")
+save(GA.out.QQ, file = "Results/GA.out.QQ.RData")
+
+
+# .. Perform matching with optimal weights ####
+wmatrix.pval <- diag(x = as.numeric(GA.out.pval$solution))
+wmatrix.QQ <- diag(x = as.numeric(GA.out.QQ$solution))
+
+match.GA.pval <- Match(Y = Y, Tr = D, X = X, 
+                       Weight.matrix = wmatrix.pval,
+                       BiasAdjust = TRUE)
+match.GA.QQ <- Match(Y = Y, Tr = D, X = X, 
+                     Weight.matrix = wmatrix.QQ,
+                     BiasAdjust = TRUE)
+
+
+# .. Evaluate balance ####
+MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+             + black + hisp + married + nodegr 
+             + re74 + I(re74^2) + re75 + I(re75^2) 
+             + u74 + u75 + I(re74 * re75)
+             + I(age * nodegr) + I(educ * re74)
+             + I(educ * re75),
+             match.out = match.GA.pval, 
+             nboots = 1000, data = lalonde)
+MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+             + black + hisp + married + nodegr 
+             + re74 + I(re74^2) + re75 + I(re75^2) 
+             + u74 + u75 + I(re74 * re75)
+             + I(age * nodegr) + I(educ * re74)
+             + I(educ * re75),
+             match.out = match.GA.QQ, 
              nboots = 1000, data = lalonde)
 
-treated.obs <- as.data.frame(match.GA$mdata$X[match.GA$index.treated, ])
-control.obs <- as.data.frame(match.GA$mdata$X[match.GA$index.control, ])
 
-qqplot(lalonde$educ[treat == 1], lalonde$educ[treat == 0])
-qqplot(treated.obs$educ, control.obs$educ)
+# .. Plot results ####
+treated.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.treated, ])
+control.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.control, ])
+treated.obs.QQ <- as.data.frame(match.GA.QQ$mdata$X[match.GA.QQ$index.treated, ])
+control.obs.QQ <- as.data.frame(match.GA.QQ$mdata$X[match.GA.QQ$index.control, ])
+
+for (v in 1:nvars){
+  pdf(paste0("Figures/minpval_Empirical QQ plot_", colnames(lalonde)[v], ".pdf"), 
+      height = 4.5, width = 6)
+  par(mfrow = c(1,2), oma = c(0, 0, 2, 0))
+  qqplot(lalonde$educ[treat == 0], lalonde$educ[treat == 1],
+         main = "Before matching",
+         xlab = "Control Observations",
+         ylab = "Treated Observations")
+  abline(0,1, lty = 2)
+  qqplot(control.obs.pval$educ, treated.obs.pval$educ,
+         main = "After matching",
+         xlab = "Control Observations",
+         ylab = "Treated Observations")
+  abline(0,1, lty = 2)
+  title(paste0("Empirical Q-Q plot of", colnames(lalonde)[v]), outer = T)
+  dev.off()
+}
+
+for (v in 1:nvars){
+  pdf(paste0("Figures/maxQQdif_Empirical QQ plot_", colnames(lalonde)[v], ".pdf"), 
+      height = 4.5, width = 6)
+  par(mfrow = c(1,2), oma = c(0, 0, 2, 0))
+  qqplot(lalonde$educ[treat == 0], lalonde$educ[treat == 1],
+         main = "Before matching",
+         xlab = "Control Observations",
+         ylab = "Treated Observations")
+  abline(0,1, lty = 2)
+  qqplot(control.obs.QQ$educ, treated.obs.QQ$educ,
+         main = "After matching",
+         xlab = "Control Observations",
+         ylab = "Treated Observations")
+  abline(0,1, lty = 2)
+  title(paste0("Empirical Q-Q plot of ", colnames(lalonde)[v]), outer = T)
+  dev.off()
+}
+
