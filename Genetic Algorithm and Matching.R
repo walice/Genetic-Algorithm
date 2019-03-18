@@ -46,16 +46,19 @@ setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project")
 #install.packages("MatchIt")
 #install.packages("nor1mix")
 #install.packages("rgenoud")
+#install.packages("rgl")
 #install.packages("tictoc")
 #install.packages("VGAM")
 library(genalg)
 library(GA)
 library(gatbxr)
+library(ggridges)
 library(Matching)
 #library(MatchIt)
 library(nor1mix)
 library(reshape2)
 library(rgenoud)
+library(rgl)
 library(tictoc)
 library(tidyverse)
 library(VGAM) # For Gaussian error function
@@ -355,10 +358,10 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
                lower = NULL, upper = NULL, init.pop = NULL,
                selection = prop.linear.scaling, 
                crossover = simple.crossover,
-               mutation = gaussian.mutation,
+               mutation = unif.mutation,
                prob.crossover = 0.8, prob.mutation = 0.1, 
                percent.elites = 5,
-               keep.track = FALSE, seed = NULL){
+               keep.track = FALSE, seed = NULL, verbose = T){
   
   # Initialize
   tic("Run-time")
@@ -458,14 +461,17 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
       fitness.evolution <- cbind(fitness.evolution, fitness)
       best.individual <- rbind(best.individual,
                                unique(pop[which(fitness == max(fitness)),]))
-      cat("Iteration: ", iter, "\n",
-          "Fitness value: ", max(fitness), "\n", 
-          "Best individual: ", best.individual[iter,], "\n\n")
+      if (verbose){
+        cat("Iteration: ", iter, "\n",
+            "Fitness value: ", max(fitness), "\n", 
+            "Best individual: ", best.individual[iter,], "\n\n")
+      }
     } else {
-      cat("Iteration: ", iter, "\n",
-          "Fitness value: ", max(fitness), "\n\n")
+      if (verbose){
+        cat("Iteration: ", iter, "\n",
+            "Fitness value: ", max(fitness), "\n\n")
+      }
     }
-    
   }
   
   # Determine solution and fitness value
@@ -490,8 +496,10 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
     GA.out$fitness.evolution <- fitness.evolution
     GA.out$best.individual <- best.individual
   }
-  
-  toc()  
+  if (verbose){
+    toc()
+  }
+    
   return(GA.out)
 }
 
@@ -501,18 +509,21 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
 # RESULTS                   ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin",
-                          "roulette", "prop.linear.scaling",
-                          "simple.crossover", "blend.crossover",
-                          "unif.mutation", "boundary.mutation",
-                          "gaussian.mutation",
-                          "prob.mutation", "prob.crossover",
-                          "percent.elites", "selection",
-                          "plot.pop.evol", "plot.fitness.evol")))
+# rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin",
+#                           "roulette", "prop.linear.scaling",
+#                           "simple.crossover", "blend.crossover",
+#                           "unif.mutation", "boundary.mutation",
+#                           "gaussian.mutation",
+#                           "prob.mutation", "prob.crossover",
+#                           "percent.elites", "selection",
+#                           "plot.pop.evol", "plot.fitness.evol")))
+
+
+# .. Evolution of fitness value and solution ####
 
 GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
-               lower = -10, upper = 10, selection = prop.linear.scaling,
-               keep.track = F)
+               lower = -3, upper = 3,
+               keep.track = T, seed = 232)
 GA3.claw$solution
 GA3.claw$fitness.value
 plot.pop.evol(GA3.claw, filter = T, 
@@ -523,8 +534,7 @@ plot.fitness.evol(GA3.claw, filter = T,
 GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
                      pop.size = 500, max.iter = 100,
                      lower = c(-2, -1), upper = c(2, 3),
-                     selection = prop.linear.scaling,
-                     keep.track = T)
+                     keep.track = T, seed = 232)
 GA3.rosenbrock$solution
 GA3.rosenbrock$fitness.value
 plot.pop.evol(GA3.rosenbrock, filter = T, 
@@ -535,13 +545,148 @@ plot.fitness.evol(GA3.rosenbrock, filter = T,
 GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]), 
                     pop.size = 500, max.iter = 100,
                     lower = c(-5.12, -5.12), upper = c(5.12, 5.12),
-                    keep.track = T)
+                    keep.track = T, seed = 232)
 GA3.rastrigin$solution
 GA3.rastrigin$fitness.value
 plot.pop.evol(GA3.rastrigin, filter = T, 
               gen.sequence = c(1, seq(10, 100, by = 10)))
 plot.fitness.evol(GA3.rastrigin, filter = T, 
-                  gen.sequence = c(1, seq(10, 100, by = 10)))
+                  gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
+
+
+# .. Simulations for different probabilities of mutation ####
+nsims <- 10
+p.mut <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+store.fitness.pmut <- matrix(NA, nrow = nsims, ncol = length(p.mut))
+colnames(store.fitness.pmut) <- p.mut
+for (p in 1:length(p.mut)){
+  for (s in 1:nsims){
+    store.fitness.pmut[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
+                                  pop.size = 500, max.iter = 100,
+                                  lower = c(-2, -1), upper = c(2, 3),
+                                  seed = s, verbose = F,
+                                  prob.mutation = p.mut[p],
+                                  prob.crossover = 0.8, percent.elites = 10,
+                                  selection = prop.linear.scaling,
+                                  crossover = simple.crossover,
+                                  mutation = unif.mutation)$fitness.value
+  }
+}
+
+store <- melt(as.data.frame(store.fitness.pmut))
+g <- ggplot(store,
+       aes(x = value, y = variable,
+           fill = variable)) +
+  geom_density_ridges() +
+  labs(x = "Fitness value",
+       y = "Probability of mutation",
+       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
+       subtitle = "Selection with fitness scaling\nSimple crossover (p = 0.8); Uniform mutation") +
+  guides(fill = FALSE)
+ggsave(g, file = "Figures/Simulation probability of mutation.png",
+       width = 6, height = 4.5, units = "in")
+
+
+# .. Simulations for different probabilities of crossover ####
+nsims <- 10
+p.cross <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+store.fitness.pcross <- matrix(NA, nrow = nsims, ncol = length(p.cross))
+colnames(store.fitness.pcross) <- p.cross
+for (p in 1:length(p.cross)){
+  for (s in 1:nsims){
+    store.fitness.pcross[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
+                                    pop.size = 500, max.iter = 100,
+                                    lower = c(-2, -1), upper = c(2, 3),
+                                    seed = s, verbose = F,
+                                    prob.mutation = 0.2,
+                                    prob.crossover = p.cross[p], 
+                                    percent.elites = 10,
+                                    selection = prop.linear.scaling,
+                                    crossover = simple.crossover,
+                                    mutation = unif.mutation)$fitness.value
+  }
+}
+
+store <- melt(as.data.frame(store.fitness.pcross))
+g <- ggplot(store,
+            aes(x = value, y = variable,
+                fill = variable)) +
+  geom_density_ridges() +
+  labs(x = "Fitness value",
+       y = "Probability of crossover",
+       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
+       subtitle = "Selection with fitness scaling\nSimple crossover; Uniform mutation (p = 0.2)") +
+  guides(fill = FALSE)
+ggsave(g, file = "Figures/Simulation probability of crossover.png",
+       width = 6, height = 4.5, units = "in")
+
+
+# .. Simulations for different probabilities of crossover ####
+nsims <- 10
+p.cross <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+store.fitness.pcross <- matrix(NA, nrow = nsims, ncol = length(p.cross))
+colnames(store.fitness.pcross) <- p.cross
+for (p in 1:length(p.cross)){
+  for (s in 1:nsims){
+    store.fitness.pcross[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
+                                    pop.size = 500, max.iter = 100,
+                                    lower = c(-2, -1), upper = c(2, 3),
+                                    seed = s, verbose = F,
+                                    prob.mutation = 0.2,
+                                    prob.crossover = p.cross[p], 
+                                    percent.elites = 10,
+                                    selection = prop.linear.scaling,
+                                    crossover = simple.crossover,
+                                    mutation = unif.mutation)$fitness.value
+  }
+}
+
+store <- melt(as.data.frame(store.fitness.pcross))
+g <- ggplot(store,
+            aes(x = value, y = variable,
+                fill = variable)) +
+  geom_density_ridges() +
+  labs(x = "Fitness value",
+       y = "Probability of crossover",
+       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
+       subtitle = "Selection with fitness scaling\nSimple crossover; Uniform mutation (p = 0.2)") +
+  guides(fill = FALSE)
+ggsave(g, file = "Figures/Simulation probability of crossover.png",
+       width = 6, height = 4.5, units = "in")
+
+
+# .. Simulations for different percentages of elites ####
+nsims <- 10
+p.elites <- c(0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+store.fitness.pelites <- matrix(NA, nrow = nsims, ncol = length(p.elites))
+colnames(store.fitness.pelites) <- p.elites
+for (p in 1:length(p.elites)){
+  for (s in 1:nsims){
+    store.fitness.pelites[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
+                                    pop.size = 500, max.iter = 100,
+                                    lower = c(-2, -1), upper = c(2, 3),
+                                    seed = s, verbose = F,
+                                    prob.mutation = 0.2,
+                                    prob.crossover = 0.8, 
+                                    percent.elites = p.elites[p],
+                                    selection = prop.linear.scaling,
+                                    crossover = simple.crossover,
+                                    mutation = unif.mutation)$fitness.value
+  }
+}
+
+store <- melt(as.data.frame(store.fitness.pelites))
+g <- ggplot(store,
+            aes(x = value, y = variable,
+                fill = variable)) +
+  geom_density_ridges() +
+  labs(x = "Fitness value",
+       y = "Percentage of elites",
+       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
+       subtitle = "Selection with fitness scaling\nSimple crossover (p=0.8); Uniform mutation (p = 0.2)") +
+  guides(fill = FALSE)
+ggsave(g, file = "Figures/Simulation percentage of elites.png",
+       width = 6, height = 4.5, units = "in")
 
 
 
