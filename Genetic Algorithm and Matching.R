@@ -524,12 +524,12 @@ GA3.claw$solution
 GA3.claw$fitness.value
 g <- plot.pop.evol(GA3.claw, filter = T, 
               gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
-ggsave(g, file = "Figures/Evolution population claw.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Evolution population claw.pdf",
+       width = 6, height = 4, units = "in")
 g <- plot.fitness.evol(GA3.claw, filter = T, 
                   gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
-ggsave(g, file = "Figures/Evolution fitness claw.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Evolution fitness claw.pdf",
+       width = 6, height = 4, units = "in")
 
 GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
                      pop.size = 500, max.iter = 100,
@@ -540,12 +540,12 @@ GA3.rosenbrock$fitness.value
 g <- plot.pop.evol(GA3.rosenbrock, filter = T, 
               gen.sequence = c(1, seq(10, 100, by = 10)),
               solution = c(1, 1))
-ggsave(g, file = "Figures/Evolution population Rosenbrock.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Evolution population Rosenbrock.pdf",
+       width = 6, height = 4, units = "in")
 g <- plot.fitness.evol(GA3.rosenbrock, filter = T, 
                   gen.sequence = c(1, seq(10, 100, by = 10)))
-ggsave(g, file = "Figures/Evolution fitness Rosenbrock.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Evolution fitness Rosenbrock.pdf",
+       width = 6, height = 4, units = "in")
 
 GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]), 
                     pop.size = 500, max.iter = 100,
@@ -556,12 +556,12 @@ GA3.rastrigin$fitness.value
 g <- plot.pop.evol(GA3.rastrigin, filter = T, 
               gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100),
               solution = c(0, 0))
-ggsave(g, file = "Figures/Evolution population Rastrigin.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Evolution population Rastrigin.pdf",
+       width = 6, height = 4, units = "in")
 plot.fitness.evol(GA3.rastrigin, filter = T, 
                   gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
-g <- ggsave(g, file = "Figures/Evolution fitness Rastrigin.png",
-       width = 6, height = 4.5, units = "in")
+g <- ggsave(g, file = "Figures/Evolution fitness Rastrigin.pdf",
+       width = 6, height = 4, units = "in")
 
 
 # .. Simulations for different probabilities of mutation ####
@@ -594,8 +594,8 @@ g <- ggplot(store,
        title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
        subtitle = "Selection with fitness scaling\nSimple crossover (p = 0.8); Uniform mutation") +
   guides(fill = FALSE)
-ggsave(g, file = "Figures/Simulation probability of mutation.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Simulation probability of mutation.pdf",
+       width = 6, height = 4, units = "in")
 
 
 # .. Simulations for different probabilities of crossover ####
@@ -628,8 +628,8 @@ g <- ggplot(store,
        title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
        subtitle = "Selection with fitness scaling\nSimple crossover; Uniform mutation (p = 0.2)") +
   guides(fill = FALSE)
-ggsave(g, file = "Figures/Simulation probability of crossover.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Simulation probability of crossover.pdf",
+       width = 6, height = 4, units = "in")
 
 
 # .. Simulations for different percentages of elites ####
@@ -662,8 +662,8 @@ g <- ggplot(store,
        title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
        subtitle = "Selection with fitness scaling\nSimple crossover (p=0.8); Uniform mutation (p = 0.2)") +
   guides(fill = FALSE)
-ggsave(g, file = "Figures/Simulation percentage of elites.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Simulation percentage of elites.pdf",
+       width = 6, height = 4, units = "in")
 
 
 # .. Simulations for different genetic operators ####
@@ -842,8 +842,8 @@ g <- ggplot(store.genop,
                                   "RS + BC + GM")) +
   theme(legend.title = element_blank()) +
   ylim(-1,-0.875)
-ggsave(g, file = "Figures/Simulations genetic operators.png",
-       width = 6, height = 4.5, units = "in")
+ggsave(g, file = "Figures/Simulations genetic operators.pdf",
+       width = 6, height = 4, units = "in")
 
 
 
@@ -985,8 +985,10 @@ nbalvars <- ncol(BalanceVars)
 
 # .. Run genetic algorithm to figure out optimal weights ####
 GA.out.pval <- GA(fitness.func = minpval, 
-                  pop.size = 500, max.iter = 5,
+                  pop.size = 50, max.iter = 1000,
                   lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
+                  percent.elites = 25,
+                  prob.mutation = 0.5,
                   keep.track = T, seed = 232)
 
 GA.out.QQ <- GA(fitness.func = function(x) -maxQQdif(x), 
@@ -1007,7 +1009,7 @@ match.GA.pval <- Match(Y = Y, Tr = D, X = X,
                        BiasAdjust = TRUE)
 match.GA.QQ <- Match(Y = Y, Tr = D, X = X, 
                      Weight.matrix = wmatrix.QQ,
-                     BiasAdjust = TRUE)
+                     BiasAdjust = F)
 
 
 # .. Evaluate balance ####

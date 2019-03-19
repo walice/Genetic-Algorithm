@@ -319,20 +319,20 @@ recons.dig <- rbind(reconstructed.digit0, reconstructed.digit1,
                     reconstructed.digit8, reconstructed.digit9)
 
 pdf("Figures/Digit reconstruction.pdf", 
-    height = 4.5, width = 6)
+    height = 4, width = 6)
 par(mfrow = c(2,10), mai = c(0,0,0,0))
 for (d in 1:10){
   matrix(digits[d,], nrow=28, byrow=TRUE) %>% 
     apply(2, rev) %>% t %>%
     image(col=gray(1:0), axes=FALSE, asp=1)
 }
-mtext("Real digits", at =-4, cex = 1.5)
 for (d in 1:10){
   matrix(recons.dig[d,], nrow=28, byrow=TRUE) %>% 
     apply(2, rev) %>% t %>%
     image(col=gray(1:0), axes=FALSE, asp=1)
 }
-mtext("Reconstructed digits", at =-4, cex = 1.5)
+mtext("Real vs. reconstructed digits", at = -4, cex = 1.5)
+dev.off()
 
 
 
