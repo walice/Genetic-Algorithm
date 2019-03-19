@@ -53,6 +53,7 @@ library(genalg)
 library(GA)
 library(gatbxr)
 library(ggridges)
+library(imager)
 library(Matching)
 #library(MatchIt)
 library(nor1mix)
@@ -208,7 +209,6 @@ rastrigin(GA2.sol[1], GA2.sol[2]) == -GA2.solvalue
 ## ## ## ## ## ## ## ## ## ## ##
 # GENETIC OPERATORS         ####
 ## ## ## ## ## ## ## ## ## ## ##
-
 
 # .. Roulette wheel selection ####
 roulette <- function(pop, fitness){
@@ -580,40 +580,6 @@ g <- ggplot(store,
        subtitle = "Selection with fitness scaling\nSimple crossover (p = 0.8); Uniform mutation") +
   guides(fill = FALSE)
 ggsave(g, file = "Figures/Simulation probability of mutation.png",
-       width = 6, height = 4.5, units = "in")
-
-
-# .. Simulations for different probabilities of crossover ####
-nsims <- 10
-p.cross <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
-store.fitness.pcross <- matrix(NA, nrow = nsims, ncol = length(p.cross))
-colnames(store.fitness.pcross) <- p.cross
-for (p in 1:length(p.cross)){
-  for (s in 1:nsims){
-    store.fitness.pcross[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
-                                    pop.size = 500, max.iter = 100,
-                                    lower = c(-2, -1), upper = c(2, 3),
-                                    seed = s, verbose = F,
-                                    prob.mutation = 0.2,
-                                    prob.crossover = p.cross[p], 
-                                    percent.elites = 10,
-                                    selection = prop.linear.scaling,
-                                    crossover = simple.crossover,
-                                    mutation = unif.mutation)$fitness.value
-  }
-}
-
-store <- melt(as.data.frame(store.fitness.pcross))
-g <- ggplot(store,
-            aes(x = value, y = variable,
-                fill = variable)) +
-  geom_density_ridges() +
-  labs(x = "Fitness value",
-       y = "Probability of crossover",
-       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
-       subtitle = "Selection with fitness scaling\nSimple crossover; Uniform mutation (p = 0.2)") +
-  guides(fill = FALSE)
-ggsave(g, file = "Figures/Simulation probability of crossover.png",
        width = 6, height = 4.5, units = "in")
 
 
