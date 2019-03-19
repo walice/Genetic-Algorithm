@@ -522,10 +522,14 @@ GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
                keep.track = T, seed = 232)
 GA3.claw$solution
 GA3.claw$fitness.value
-plot.pop.evol(GA3.claw, filter = T, 
-              gen.sequence = c(1, seq(10, 100, by = 10)))
-plot.fitness.evol(GA3.claw, filter = T, 
-                  gen.sequence = c(1, seq(10, 100, by = 10)))
+g <- plot.pop.evol(GA3.claw, filter = T, 
+              gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
+ggsave(g, file = "Figures/Evolution population claw.png",
+       width = 6, height = 4.5, units = "in")
+g <- plot.fitness.evol(GA3.claw, filter = T, 
+                  gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
+ggsave(g, file = "Figures/Evolution fitness claw.png",
+       width = 6, height = 4.5, units = "in")
 
 GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
                      pop.size = 500, max.iter = 100,
@@ -533,10 +537,15 @@ GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]),
                      keep.track = T, seed = 232)
 GA3.rosenbrock$solution
 GA3.rosenbrock$fitness.value
-plot.pop.evol(GA3.rosenbrock, filter = T, 
-              gen.sequence = c(1, seq(10, 100, by = 10)))
-plot.fitness.evol(GA3.rosenbrock, filter = T, 
+g <- plot.pop.evol(GA3.rosenbrock, filter = T, 
+              gen.sequence = c(1, seq(10, 100, by = 10)),
+              solution = c(1, 1))
+ggsave(g, file = "Figures/Evolution population Rosenbrock.png",
+       width = 6, height = 4.5, units = "in")
+g <- plot.fitness.evol(GA3.rosenbrock, filter = T, 
                   gen.sequence = c(1, seq(10, 100, by = 10)))
+ggsave(g, file = "Figures/Evolution fitness Rosenbrock.png",
+       width = 6, height = 4.5, units = "in")
 
 GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]), 
                     pop.size = 500, max.iter = 100,
@@ -544,10 +553,15 @@ GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]),
                     keep.track = T, seed = 232)
 GA3.rastrigin$solution
 GA3.rastrigin$fitness.value
-plot.pop.evol(GA3.rastrigin, filter = T, 
-              gen.sequence = c(1, seq(10, 100, by = 10)))
+g <- plot.pop.evol(GA3.rastrigin, filter = T, 
+              gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100),
+              solution = c(0, 0))
+ggsave(g, file = "Figures/Evolution population Rastrigin.png",
+       width = 6, height = 4.5, units = "in")
 plot.fitness.evol(GA3.rastrigin, filter = T, 
                   gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
+g <- ggsave(g, file = "Figures/Evolution fitness Rastrigin.png",
+       width = 6, height = 4.5, units = "in")
 
 
 # .. Simulations for different probabilities of mutation ####

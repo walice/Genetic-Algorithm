@@ -1,4 +1,5 @@
-plot.pop.evol <- function(result, filter = F, gen.sequence = NULL){
+plot.pop.evol <- function(result, filter = F, gen.sequence = NULL,
+                          solution = NULL){
   pop.size <- result$pop.size
   pop.evolution <- as.data.frame(result$pop.evolution)
   pop.evolution <- gather(pop.evolution,
@@ -41,14 +42,20 @@ plot.pop.evol <- function(result, filter = F, gen.sequence = NULL){
   }
   g <- g +
     geom_point() +
-    labs(x = ifelse(nvars == 1, "", "Variable 1"),
+    labs(x = ifelse(nvars == 1, "Individual", "Variable 1"),
          y = ifelse(nvars == 1, "Solution", "Variable 2"),
          title = "Evolution of solution in population") +
-    scale_color_discrete(breaks = sort(as.numeric(plot.data$Generation))) +
-    theme(axis.text.x = element_blank(),
-          axis.ticks.x = element_blank())
-  if(nvars > 1){
+    scale_color_discrete(breaks = sort(as.numeric(plot.data$Generation)))
+  if (nvars > 1){
     g <- g + geom_count(show.legend = F)
+    if (length(solution) > 0){
+      g <- g + geom_point(aes(x = solution[1], y = solution[2]),
+                          col = "black", shape = 17)
+    }
+  }
+  if (nvars == 1){
+    g <- g + theme(axis.text.x = element_blank(),
+                   axis.ticks.x = element_blank())
   }
   g  
 }
