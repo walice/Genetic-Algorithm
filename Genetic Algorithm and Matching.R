@@ -561,8 +561,9 @@ for (p in 1:length(p.mut)){
                                   pop.size = 500, max.iter = 100,
                                   lower = c(-2, -1), upper = c(2, 3),
                                   seed = s, verbose = F,
+                                  prob.crossover = 0.8, 
                                   prob.mutation = p.mut[p],
-                                  prob.crossover = 0.8, percent.elites = 10,
+                                  percent.elites = 5,
                                   selection = prop.linear.scaling,
                                   crossover = simple.crossover,
                                   mutation = unif.mutation)$fitness.value
@@ -594,9 +595,9 @@ for (p in 1:length(p.cross)){
                                     pop.size = 500, max.iter = 100,
                                     lower = c(-2, -1), upper = c(2, 3),
                                     seed = s, verbose = F,
-                                    prob.mutation = 0.2,
                                     prob.crossover = p.cross[p], 
-                                    percent.elites = 10,
+                                    prob.mutation = 0.2,
+                                    percent.elites = 5,
                                     selection = prop.linear.scaling,
                                     crossover = simple.crossover,
                                     mutation = unif.mutation)$fitness.value
@@ -648,6 +649,186 @@ g <- ggplot(store,
        subtitle = "Selection with fitness scaling\nSimple crossover (p=0.8); Uniform mutation (p = 0.2)") +
   guides(fill = FALSE)
 ggsave(g, file = "Figures/Simulation percentage of elites.png",
+       width = 6, height = 4.5, units = "in")
+
+
+# .. Simulations for different genetic operators ####
+store.genop1 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = prop.linear.scaling,
+                   crossover = simple.crossover,
+                   mutation = unif.mutation)$fitness.evolution
+
+store.genop2 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = prop.linear.scaling,
+                   crossover = simple.crossover,
+                   mutation = boundary.mutation)$fitness.evolution
+
+store.genop3 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = prop.linear.scaling,
+                   crossover = simple.crossover,
+                   mutation = gaussian.mutation)$fitness.evolution
+
+store.genop4 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = prop.linear.scaling,
+                   crossover = blend.crossover,
+                   mutation = unif.mutation)$fitness.evolution
+
+store.genop5 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = prop.linear.scaling,
+                   crossover = blend.crossover,
+                   mutation = boundary.mutation)$fitness.evolution
+
+store.genop6 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = prop.linear.scaling,
+                   crossover = blend.crossover,
+                   mutation = gaussian.mutation)$fitness.evolution
+
+store.genop7 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = roulette,
+                   crossover = simple.crossover,
+                   mutation = unif.mutation)$fitness.evolution
+
+store.genop8 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = roulette,
+                   crossover = simple.crossover,
+                   mutation = boundary.mutation)$fitness.evolution
+
+store.genop9 <- GA(fitness.func = claw, 
+                   pop.size = 500, max.iter = 100,
+                   lower = -3, upper = 3,
+                   seed = 232, keep.track = T,
+                   prob.mutation = 0.2,
+                   prob.crossover = 0.8, 
+                   percent.elites = 10,
+                   selection = roulette,
+                   crossover = simple.crossover,
+                   mutation = gaussian.mutation)$fitness.evolution
+
+store.genop10 <- GA(fitness.func = claw, 
+                    pop.size = 500, max.iter = 100,
+                    lower = -3, upper = 3,
+                    seed = 232, keep.track = T,
+                    prob.mutation = 0.2,
+                    prob.crossover = 0.8, 
+                    percent.elites = 10,
+                    selection = roulette,
+                    crossover = blend.crossover,
+                    mutation = unif.mutation)$fitness.evolution
+
+store.genop11 <- GA(fitness.func = claw, 
+                    pop.size = 500, max.iter = 100,
+                    lower = -3, upper = 3,
+                    seed = 232, keep.track = T,
+                    prob.mutation = 0.2,
+                    prob.crossover = 0.8, 
+                    percent.elites = 10,
+                    selection = roulette,
+                    crossover = blend.crossover,
+                    mutation = boundary.mutation)$fitness.evolution
+
+store.genop12 <- GA(fitness.func = claw, 
+                    pop.size = 500, max.iter = 100,
+                    lower = -3, upper = 3,
+                    seed = 232, keep.track = T,
+                    prob.mutation = 0.2,
+                    prob.crossover = 0.8, 
+                    percent.elites = 10,
+                    selection = roulette,
+                    crossover = blend.crossover,
+                    mutation = gaussian.mutation)$fitness.evolution
+
+store.genop1 = apply(store.genop1, 2, mean)
+store.genop2 = apply(store.genop2, 2, mean)
+store.genop3 = apply(store.genop3, 2, mean)
+store.genop4 = apply(store.genop4, 2, mean)
+store.genop5 = apply(store.genop5, 2, mean)
+store.genop6 = apply(store.genop6, 2, mean)
+store.genop7 = apply(store.genop7, 2, mean)
+store.genop8 = apply(store.genop8, 2, mean)
+store.genop9 = apply(store.genop9, 2, mean)
+store.genop10 = apply(store.genop10, 2, mean)
+store.genop11 = apply(store.genop11, 2, mean)
+store.genop12 = apply(store.genop12, 2, mean)
+
+store.genop <- cbind(store.genop1, store.genop2, store.genop3,
+      store.genop4, store.genop5, store.genop6,
+      store.genop7, store.genop8, store.genop9,
+      store.genop10, store.genop11, store.genop12)
+store.genop <- as.data.frame(store.genop) %>% 
+  melt %>%
+  mutate(Fitness = log(value),
+         Generation = rep(1:100, 12))
+
+g <- ggplot(store.genop,
+       aes(x = Generation, y = Fitness, col = variable)) +
+  geom_line(aes(y = log(0.4113089)), 
+            col = "red", linetype = 2) +
+  geom_line(size = 1) +
+  labs(y = "Mean population fitness (log)",
+       title = "Performance of genetic operators on ADC") +
+  scale_color_discrete(labels = c("LS + SC + UM", 
+                                  "LS + SC + BM", 
+                                  "LS + SC + GM", 
+                                  "LS + BC + UM", 
+                                  "LS + BC + BM", 
+                                  "LS + BC + GM", 
+                                  "RS + SC + UM", 
+                                  "RS + SC + BM", 
+                                  "RS + SC + GM", 
+                                  "RS + BC + UM", 
+                                  "RS + BC + BM", 
+                                  "RS + BC + GM")) +
+  theme(legend.title = element_blank()) +
+  ylim(-1,-0.875)
+ggsave(g, file = "Figures/Simulations genetic operators.png",
        width = 6, height = 4.5, units = "in")
 
 
