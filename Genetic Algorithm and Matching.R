@@ -1,4 +1,4 @@
-# Genetic Algorithm with Applications to Mathching
+# Genetic Algorithm with Applications to Matching
 # Alice Lepissier
 # alice.lepissier@gmail.com
 
@@ -38,10 +38,14 @@
 # PREAMBLE                  ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project")
+#setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project") # Laptop
+setwd("C:/boxsync/alepissier/PhD/Statistics/PSTAT 232/Final project") # Bren
+#setwd("/home/alice/232/") # Linux server
+#install.packages("ebal")
 #install.packages("genalg")
 #install.packages("GA")
 #devtools::install_github('drizztxx/gatbxr')
+#install.packages("kableExtra")
 #install.packages("Matching")
 #install.packages("MatchIt")
 #install.packages("nor1mix")
@@ -49,14 +53,16 @@ setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project")
 #install.packages("rgl")
 #install.packages("tictoc")
 #install.packages("VGAM")
-library(genalg)
+library(ebal)
+#library(genalg)
 library(GA)
-library(gatbxr)
+#library(gatbxr)
 library(ggridges)
+library(kableExtra)
 library(imager)
 library(Matching)
 #library(MatchIt)
-library(nor1mix)
+#library(nor1mix)
 library(reshape2)
 library(rgenoud)
 library(rgl)
@@ -558,7 +564,7 @@ g <- plot.pop.evol(GA3.rastrigin, filter = T,
               solution = c(0, 0))
 ggsave(g, file = "Figures/Evolution population Rastrigin.pdf",
        width = 6, height = 4, units = "in")
-plot.fitness.evol(GA3.rastrigin, filter = T, 
+g <- plot.fitness.evol(GA3.rastrigin, filter = T, 
                   gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
 g <- ggsave(g, file = "Figures/Evolution fitness Rastrigin.pdf",
        width = 6, height = 4, units = "in")
@@ -867,12 +873,35 @@ BalanceMatrix <- cbind(age, I(age^2), educ, I(educ^2),
                        I(educ * re75))
 
 
+# .. Balance before matching ####
+no.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+                       + black + hisp + married + nodegr 
+                       + re74 + I(re74^2) + re75 + I(re75^2) 
+                       + u74 + u75 + I(re74 * re75)
+                       + I(age * nodegr) + I(educ * re74)
+                       + I(educ * re75),
+                       nboots = 1000, data = lalonde)
+# varnames <- c("Age", "Age sq.", "Years of education", "Years education sq.",
+#               "Black", "Hispanic", "Married", "No degree", "1974 earnings", "1974 earnings sq.",
+#               "1975 earnings", "1975 earnings sq.", "Unemployed in 1974", "Unemployed in 1975",
+#               "1974 * 1975 earnings", "age * educ", "educ * 1974 earnings", "educ * 1975 earnings")
+varnames <- c("age", "age^2", "educ", "educ^2", "black", "hispanic", "married", "no degree", 
+              "re1974", "re1974^2", "re1975", "re1975^2", "unemp74", "unemp75", "re1974*re1975", 
+              "age*educ", "educ*re1974", "educ*1975")
+baltest <- baltest.collect(no.bal,
+                           var.names = varnames,
+                           after = F)
+bal.out.before <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
+colnames(bal.out) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
+kable(bal.out, format = "latex")
+
+
 # .. Propensity Score Matching ####
 glm <- glm(treat ~ age + educ + black + hisp
            + married + nodegr + re74 + re75, 
            family = binomial, data = lalonde)
 match.ps <- Match(Y = Y, Tr = D, X = glm$fitted)
-MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+ps.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
              + black + hisp + married + nodegr 
              + re74 + I(re74^2) + re75 + I(re75^2) 
              + u74 + u75 + I(re74 * re75)
@@ -880,16 +909,22 @@ MatchBalance(D ~ age + I(age^2) + educ + I(educ^2)
              + I(educ * re75),
              match.out = match.ps, 
              nboots = 1000, data = lalonde)
+baltest <- baltest.collect(ps.bal,
+                           var.names = varnames,
+                           after = T)
+bal.out.ps <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
+colnames(bal.out) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
+kable(bal.out, format = "latex")
 
 
 # .. Genetic Matching ####
 Genoud.out <- GenMatch(Tr = D, X = X, 
-                   #BalanceMatrix = BalanceMatrix, 
+                   BalanceMatrix = BalanceMatrix, 
                    pop.size = 100,
                    loss = 2)
 match.Genoud <- Match(Y = Y, Tr = D, X = X, 
                       Weight.matrix = Genoud.out)
-MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+genoud.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
              + black + hisp + married + nodegr 
              + re74 + I(re74^2) + re75 + I(re75^2) 
              + u74 + u75 + I(re74 * re75)
@@ -897,7 +932,20 @@ MatchBalance(D ~ age + I(age^2) + educ + I(educ^2)
              + I(educ * re75),
              match.out = match.Genoud, 
              nboots = 1000, data = lalonde)
+baltest <- baltest.collect(genoud.bal,
+                           var.names = varnames,
+                           after = T)
+bal.out <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
+colnames(bal.out) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
+kable(bal.out, format = "latex")
 
+
+# All together
+bal.out <- cbind(bal.out.before, bal.out.ps, bal.out.GA.pval)
+bal.out <- bal.out[,c(3:4,7:8,11:12)]
+#colnames(bal.out) <- c("Before matching", "Matching on PS", "Matching using GA")
+colnames(bal.out) <- rep(c("t", "KS"), 3)
+kable(bal.out, format = "latex")
 
 
 ## ## ## ## ## ## ## ## ## ## ##
@@ -971,10 +1019,6 @@ maxQQdif <- function(x){
 }
 
 # .. Variables to seek balance on ####
-Y <- lalonde$re78
-D <- lalonde$treat
-X <- cbind(age, educ, black, hisp, married, 
-           nodegr, re74, re75, u74, u75)
 PropensityScore <- glm(treat ~ age + educ + black + hisp
                        + married + nodegr + re74 + re75, 
                        family = binomial, data = lalonde)$fitted
@@ -989,11 +1033,12 @@ GA.out.pval <- GA(fitness.func = minpval,
                   lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
                   percent.elites = 25,
                   prob.mutation = 0.5,
-                  keep.track = T, seed = 232)
+                  keep.track = F, seed = 232)
 
 GA.out.QQ <- GA(fitness.func = function(x) -maxQQdif(x), 
-                pop.size = 500, max.iter = 5,
+                pop.size = 50, max.iter = 500,
                 lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
+                mutation = boundary.mutation,
                 keep.track = T, seed = 232)
 
 save(GA.out.pval, file = "Results/GA.out.pval.RData")
@@ -1006,14 +1051,14 @@ wmatrix.QQ <- diag(x = as.numeric(GA.out.QQ$solution))
 
 match.GA.pval <- Match(Y = Y, Tr = D, X = X, 
                        Weight.matrix = wmatrix.pval,
-                       BiasAdjust = TRUE)
+                       BiasAdjust = T)
 match.GA.QQ <- Match(Y = Y, Tr = D, X = X, 
                      Weight.matrix = wmatrix.QQ,
-                     BiasAdjust = F)
+                     BiasAdjust = T)
 
 
 # .. Evaluate balance ####
-MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+GA.pval.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
              + black + hisp + married + nodegr 
              + re74 + I(re74^2) + re75 + I(re75^2) 
              + u74 + u75 + I(re74 * re75)
@@ -1021,7 +1066,14 @@ MatchBalance(D ~ age + I(age^2) + educ + I(educ^2)
              + I(educ * re75),
              match.out = match.GA.pval, 
              nboots = 1000, data = lalonde)
-MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
+baltest <- baltest.collect(GA.pval.bal,
+                           var.names = varnames,
+                           after = T)
+bal.out.GA.pval <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
+colnames(bal.out.GA.pval) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
+kable(bal.out, format = "latex")
+
+GA.QQ.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
              + black + hisp + married + nodegr 
              + re74 + I(re74^2) + re75 + I(re75^2) 
              + u74 + u75 + I(re74 * re75)
@@ -1029,35 +1081,45 @@ MatchBalance(D ~ age + I(age^2) + educ + I(educ^2)
              + I(educ * re75),
              match.out = match.GA.QQ, 
              nboots = 1000, data = lalonde)
+baltest <- baltest.collect(GA.QQ.bal,
+                           var.names = varnames,
+                           after = T)
+bal.out.GA.QQ <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
+colnames(bal.out.GA.QQ) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
+kable(bal.out, format = "latex")
 
 
 # .. Plot results ####
-treated.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.treated, ])
-control.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.control, ])
+# treated.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.treated, ])
+# control.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.control, ])
+
+treated.obs.pval <- lalonde[match.GA.pval$index.treated,]
+control.obs.pval <- lalonde[match.GA.pval$index.control,]
+
 treated.obs.QQ <- as.data.frame(match.GA.QQ$mdata$X[match.GA.QQ$index.treated, ])
 control.obs.QQ <- as.data.frame(match.GA.QQ$mdata$X[match.GA.QQ$index.control, ])
 
 for (v in 1:nvars){
   pdf(paste0("Figures/minpval_Empirical QQ plot_", colnames(lalonde)[v], ".pdf"), 
-      height = 4.5, width = 6)
+      height = 4, width = 6)
   par(mfrow = c(1,2), oma = c(0, 0, 2, 0))
-  qqplot(lalonde$educ[treat == 0], lalonde$educ[treat == 1],
+  qqplot(lalonde[treat == 0, v], lalonde[treat == 1, v],
          main = "Before matching",
          xlab = "Control Observations",
          ylab = "Treated Observations")
   abline(0,1, lty = 2)
-  qqplot(control.obs.pval$educ, treated.obs.pval$educ,
+  qqplot(control.obs.pval[, v], treated.obs.pval[, v],
          main = "After matching",
          xlab = "Control Observations",
          ylab = "Treated Observations")
   abline(0,1, lty = 2)
-  title(paste0("Empirical Q-Q plot of", colnames(lalonde)[v]), outer = T)
+  title(paste0("Empirical Q-Q plot of ", colnames(lalonde)[v]), outer = T)
   dev.off()
 }
 
 for (v in 1:nvars){
   pdf(paste0("Figures/maxQQdif_Empirical QQ plot_", colnames(lalonde)[v], ".pdf"), 
-      height = 4.5, width = 6)
+      height = 4, width = 6)
   par(mfrow = c(1,2), oma = c(0, 0, 2, 0))
   qqplot(lalonde$educ[treat == 0], lalonde$educ[treat == 1],
          main = "Before matching",
