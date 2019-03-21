@@ -38,8 +38,8 @@
 # PREAMBLE                  ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project") # Laptop
-setwd("C:/boxsync/alepissier/PhD/Statistics/PSTAT 232/Final project") # Bren
+setwd("C:/Users/Alice/Box Sync/PhD/Statistics/PSTAT 232/Final Project") # Laptop
+#setwd("C:/boxsync/alepissier/PhD/Statistics/PSTAT 232/Final project") # Bren
 #setwd("/home/alice/232/") # Linux server
 #install.packages("ebal")
 #install.packages("genalg")
@@ -479,6 +479,9 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
   # Determine solution and fitness value
   fitness.value <- max(fitness)
   solution <- unique(pop[which(fitness == fitness.value),])
+  if (nrow(solution > 1)){
+    solution <- apply(solution, 2, mean)
+  }
   
   # Spit out results
   GA.out$population <- pop
@@ -858,7 +861,6 @@ ggsave(g, file = "Figures/Simulations genetic operators.pdf",
 ## ## ## ## ## ## ## ## ## ## ##
 
 # .. Data ####
-
 data("lalonde") # From Matching
 attach(lalonde)
 Y <- lalonde$re78
@@ -946,6 +948,7 @@ bal.out <- bal.out[,c(3:4,7:8,11:12)]
 #colnames(bal.out) <- c("Before matching", "Matching on PS", "Matching using GA")
 colnames(bal.out) <- rep(c("t", "KS"), 3)
 kable(bal.out, format = "latex")
+
 
 
 ## ## ## ## ## ## ## ## ## ## ##
