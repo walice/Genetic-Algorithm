@@ -479,7 +479,7 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
   # Determine solution and fitness value
   fitness.value <- max(fitness)
   solution <- unique(pop[which(fitness == fitness.value),])
-  if (nrow(solution > 1)){
+  if (length(solution) > nvars){
     solution <- apply(solution, 2, mean)
   }
   
