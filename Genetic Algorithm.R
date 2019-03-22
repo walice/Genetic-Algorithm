@@ -24,13 +24,23 @@
 # .. Gaussian mutation
 # Genetic Algorithm
 # Results
+# .. Evolution of fitness value and solution
+# .. Simulations for different probabilities of crossover
+# .. Simulations for different probabilities of mutation
+# .. Simulations for different percentages of elites
+# .. Simulations for different genetic operators
 # Matching
 # .. Data
+# .. Balance before matching
 # .. Propensity Score Matching
-# .. Genetic Matching
+# .. Genetic Matching using genoud
 # Genetic Matching
 # .. Objective function
-# .. Results
+# .. Variables to seek balance on
+# .. Run genetic algorithm to figure out optimal weights
+# .. Perform matching with optimal weights
+# .. Evaluate balance
+# .. Plot results
 
 
 
@@ -99,7 +109,7 @@ g <- ggplot(claw.data, aes(x = x, y = y)) +
              col = "red", size = 2) +
   labs(title = "Asymmetric Double Claw function")
 ggsave(g, file = "Figures/Asymmetric Double Claw function.png",
-       width = 6, height = 4.5, units = "in")
+       width = 4, height = 3, units = "in")
 
 
 # .. Rosenbrock function ####
@@ -233,7 +243,7 @@ roulette <- function(pop, fitness){
 
 # .. Selection proportional to fitness with linear scaling ####
 # Credit: Luca Scrucca
-# I basically implemented his selection operator from the GA package.
+# I implemented his selection operator.
 prop.linear.scaling <- function(pop, fitness){
   pop <- pop
   fitness <- fitness
@@ -484,12 +494,12 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
   }
   
   # Spit out results
+  GA.out$fitness.value <- fitness.value
+  GA.out$solution <- solution
   GA.out$population <- pop
   GA.out$fitness <- fitness
-  GA.out$mean.population <- mean(pop)
+  GA.out$mean.population <- apply(pop, 2, mean)
   GA.out$mean.fitness <- mean(fitness)
-  GA.out$solution <- solution
-  GA.out$fitness.value <- fitness.value
   GA.out$pop.size <- pop.size
   
   if (keep.track){
@@ -514,18 +524,7 @@ GA <- function(fitness.func, pop.size = 500, max.iter = 100,
 # RESULTS                   ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-# rm(list = setdiff(ls(), c("GA", "claw", "rosenbrock", "rastrigin",
-#                           "roulette", "prop.linear.scaling",
-#                           "simple.crossover", "blend.crossover",
-#                           "unif.mutation", "boundary.mutation",
-#                           "gaussian.mutation",
-#                           "prob.mutation", "prob.crossover",
-#                           "percent.elites", "selection",
-#                           "plot.pop.evol", "plot.fitness.evol")))
-
-
 # .. Evolution of fitness value and solution ####
-
 GA3.claw <- GA(claw, pop.size = 500, max.iter = 100,
                lower = -3, upper = 3,
                keep.track = T, seed = 232)
@@ -534,11 +533,11 @@ GA3.claw$fitness.value
 g <- plot.pop.evol(GA3.claw, filter = T, 
               gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
 ggsave(g, file = "Figures/Evolution population claw.pdf",
-       width = 6, height = 4, units = "in")
+       width = 5, height = 3, units = "in")
 g <- plot.fitness.evol(GA3.claw, filter = T, 
                   gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
 ggsave(g, file = "Figures/Evolution fitness claw.pdf",
-       width = 6, height = 4, units = "in")
+       width = 5, height = 3, units = "in")
 
 GA3.rosenbrock <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
                      pop.size = 500, max.iter = 100,
@@ -550,11 +549,11 @@ g <- plot.pop.evol(GA3.rosenbrock, filter = T,
               gen.sequence = c(1, seq(10, 100, by = 10)),
               solution = c(1, 1))
 ggsave(g, file = "Figures/Evolution population Rosenbrock.pdf",
-       width = 6, height = 4, units = "in")
+       width = 5, height = 3, units = "in")
 g <- plot.fitness.evol(GA3.rosenbrock, filter = T, 
                   gen.sequence = c(1, seq(10, 100, by = 10)))
 ggsave(g, file = "Figures/Evolution fitness Rosenbrock.pdf",
-       width = 6, height = 4, units = "in")
+       width = 5, height = 3, units = "in")
 
 GA3.rastrigin <- GA(fitness.func = function(x) -rastrigin(x[1], x[2]), 
                     pop.size = 500, max.iter = 100,
@@ -566,10 +565,44 @@ g <- plot.pop.evol(GA3.rastrigin, filter = T,
               gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100),
               solution = c(0, 0))
 ggsave(g, file = "Figures/Evolution population Rastrigin.pdf",
-       width = 6, height = 4, units = "in")
+       width = 5, height = 3, units = "in")
 g <- plot.fitness.evol(GA3.rastrigin, filter = T, 
                   gen.sequence = c(1, 2, 3, 4, 5, 10, 30, 50, 70, 100))
-g <- ggsave(g, file = "Figures/Evolution fitness Rastrigin.pdf",
+ggsave(g, file = "Figures/Evolution fitness Rastrigin.pdf",
+       width = 5, height = 3, units = "in")
+
+
+# .. Simulations for different probabilities of crossover ####
+nsims <- 10
+p.cross <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+store.fitness.pcross <- matrix(NA, nrow = nsims, ncol = length(p.cross))
+colnames(store.fitness.pcross) <- p.cross
+for (p in 1:length(p.cross)){
+  for (s in 1:nsims){
+    store.fitness.pcross[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
+                                    pop.size = 500, max.iter = 100,
+                                    lower = c(-2, -1), upper = c(2, 3),
+                                    seed = s, verbose = F,
+                                    prob.crossover = p.cross[p], 
+                                    prob.mutation = 0.2,
+                                    percent.elites = 5,
+                                    selection = prop.linear.scaling,
+                                    crossover = simple.crossover,
+                                    mutation = unif.mutation)$fitness.value
+  }
+}
+
+store <- melt(as.data.frame(store.fitness.pcross))
+g <- ggplot(store,
+            aes(x = value*-1, y = variable,
+                fill = variable)) +
+  geom_density_ridges() +
+  labs(x = "Fitness value",
+       y = "Probability of crossover",
+       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
+       subtitle = "Selection with fitness scaling\nSimple crossover; Uniform mutation (p = 0.2)") +
+  guides(fill = FALSE)
+ggsave(g, file = "Figures/Simulation probability of crossover.pdf",
        width = 6, height = 4, units = "in")
 
 
@@ -595,7 +628,7 @@ for (p in 1:length(p.mut)){
 
 store <- melt(as.data.frame(store.fitness.pmut))
 g <- ggplot(store,
-       aes(x = value, y = variable,
+       aes(x = value*-1, y = variable,
            fill = variable)) +
   geom_density_ridges() +
   labs(x = "Fitness value",
@@ -604,40 +637,6 @@ g <- ggplot(store,
        subtitle = "Selection with fitness scaling\nSimple crossover (p = 0.8); Uniform mutation") +
   guides(fill = FALSE)
 ggsave(g, file = "Figures/Simulation probability of mutation.pdf",
-       width = 6, height = 4, units = "in")
-
-
-# .. Simulations for different probabilities of crossover ####
-nsims <- 10
-p.cross <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
-store.fitness.pcross <- matrix(NA, nrow = nsims, ncol = length(p.cross))
-colnames(store.fitness.pcross) <- p.cross
-for (p in 1:length(p.cross)){
-  for (s in 1:nsims){
-    store.fitness.pcross[s,p] <- GA(fitness.func = function(x) -rosenbrock(x[1], x[2]), 
-                                    pop.size = 500, max.iter = 100,
-                                    lower = c(-2, -1), upper = c(2, 3),
-                                    seed = s, verbose = F,
-                                    prob.crossover = p.cross[p], 
-                                    prob.mutation = 0.2,
-                                    percent.elites = 5,
-                                    selection = prop.linear.scaling,
-                                    crossover = simple.crossover,
-                                    mutation = unif.mutation)$fitness.value
-  }
-}
-
-store <- melt(as.data.frame(store.fitness.pcross))
-g <- ggplot(store,
-            aes(x = value, y = variable,
-                fill = variable)) +
-  geom_density_ridges() +
-  labs(x = "Fitness value",
-       y = "Probability of crossover",
-       title = paste0("Fitness value for Rosenbrock function, ", nsims, " simulations"),
-       subtitle = "Selection with fitness scaling\nSimple crossover; Uniform mutation (p = 0.2)") +
-  guides(fill = FALSE)
-ggsave(g, file = "Figures/Simulation probability of crossover.pdf",
        width = 6, height = 4, units = "in")
 
 
@@ -663,7 +662,7 @@ for (p in 1:length(p.elites)){
 
 store <- melt(as.data.frame(store.fitness.pelites))
 g <- ggplot(store,
-            aes(x = value, y = variable,
+            aes(x = value*-1, y = variable,
                 fill = variable)) +
   geom_density_ridges() +
   labs(x = "Fitness value",
@@ -855,286 +854,4 @@ ggsave(g, file = "Figures/Simulations genetic operators.pdf",
        width = 6, height = 4, units = "in")
 
 
-
-## ## ## ## ## ## ## ## ## ## ##
-# MATCHING                  ####
-## ## ## ## ## ## ## ## ## ## ##
-
-# .. Data ####
-data("lalonde") # From Matching
-attach(lalonde)
-Y <- lalonde$re78
-D <- lalonde$treat
-X <- cbind(age, educ, black, hisp, married, 
-           nodegr, re74, re75, u74, u75)
-BalanceMatrix <- cbind(age, I(age^2), educ, I(educ^2), 
-                       black, hisp, married, nodegr, 
-                       re74, I(re74^2), re75, I(re75^2), 
-                       u74, u75, I(re74 * re75), 
-                       I(age * nodegr), I(educ * re74), 
-                       I(educ * re75))
-
-
-# .. Balance before matching ####
-no.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
-                       + black + hisp + married + nodegr 
-                       + re74 + I(re74^2) + re75 + I(re75^2) 
-                       + u74 + u75 + I(re74 * re75)
-                       + I(age * nodegr) + I(educ * re74)
-                       + I(educ * re75),
-                       nboots = 1000, data = lalonde)
-# varnames <- c("Age", "Age sq.", "Years of education", "Years education sq.",
-#               "Black", "Hispanic", "Married", "No degree", "1974 earnings", "1974 earnings sq.",
-#               "1975 earnings", "1975 earnings sq.", "Unemployed in 1974", "Unemployed in 1975",
-#               "1974 * 1975 earnings", "age * educ", "educ * 1974 earnings", "educ * 1975 earnings")
-varnames <- c("age", "age^2", "educ", "educ^2", "black", "hispanic", "married", "no degree", 
-              "re1974", "re1974^2", "re1975", "re1975^2", "unemp74", "unemp75", "re1974*re1975", 
-              "age*educ", "educ*re1974", "educ*1975")
-baltest <- baltest.collect(no.bal,
-                           var.names = varnames,
-                           after = F)
-bal.out.before <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
-colnames(bal.out) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
-kable(bal.out, format = "latex")
-
-
-# .. Propensity Score Matching ####
-glm <- glm(treat ~ age + educ + black + hisp
-           + married + nodegr + re74 + re75, 
-           family = binomial, data = lalonde)
-match.ps <- Match(Y = Y, Tr = D, X = glm$fitted)
-ps.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
-             + black + hisp + married + nodegr 
-             + re74 + I(re74^2) + re75 + I(re75^2) 
-             + u74 + u75 + I(re74 * re75)
-             + I(age * nodegr) + I(educ * re74)
-             + I(educ * re75),
-             match.out = match.ps, 
-             nboots = 1000, data = lalonde)
-baltest <- baltest.collect(ps.bal,
-                           var.names = varnames,
-                           after = T)
-bal.out.ps <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
-colnames(bal.out) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
-kable(bal.out, format = "latex")
-
-
-# .. Genetic Matching ####
-Genoud.out <- GenMatch(Tr = D, X = X, 
-                   BalanceMatrix = BalanceMatrix, 
-                   pop.size = 100,
-                   loss = 2)
-match.Genoud <- Match(Y = Y, Tr = D, X = X, 
-                      Weight.matrix = Genoud.out)
-genoud.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
-             + black + hisp + married + nodegr 
-             + re74 + I(re74^2) + re75 + I(re75^2) 
-             + u74 + u75 + I(re74 * re75)
-             + I(age * nodegr) + I(educ * re74)
-             + I(educ * re75),
-             match.out = match.Genoud, 
-             nboots = 1000, data = lalonde)
-baltest <- baltest.collect(genoud.bal,
-                           var.names = varnames,
-                           after = T)
-bal.out <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
-colnames(bal.out) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
-kable(bal.out, format = "latex")
-
-
-# All together
-bal.out <- cbind(bal.out.before, bal.out.ps, bal.out.GA.pval)
-bal.out <- bal.out[,c(3:4,7:8,11:12)]
-#colnames(bal.out) <- c("Before matching", "Matching on PS", "Matching using GA")
-colnames(bal.out) <- rep(c("t", "KS"), 3)
-kable(bal.out, format = "latex")
-
-
-
-## ## ## ## ## ## ## ## ## ## ##
-# GENETIC MATCHING          ####
-## ## ## ## ## ## ## ## ## ## ##
-
-# .. Objective functions ####
-minpval <- function(x){
-  
-  wmatrix <- diag(x, nrow = nvars)
-  
-  # To counter the error that leading minors are not positive.
-  # This happens when the eigenvectors are not positive, and the data is
-  # too noisy to estimate a full covariance matrix. So add a penalty
-  # term to push away from zero.
-  eigenvalues <- eigen(wmatrix, symmetric = TRUE, only.values = TRUE)$values
-  if (min(eigenvalues) < sqrt(.Machine$double.eps)){
-    wmatrix <- wmatrix + diag(nvars) * sqrt(.Machine$double.eps)
-  } 
-  
-  match.init <- Match(Tr = D, X = X,
-                      Weight.matrix = wmatrix)
-  
-  index.treated <- match.init$index.treated
-  index.control <- match.init$index.control
-  Tr <- BalanceVars[index.treated,]
-  Co <- BalanceVars[index.control,]
-  
-  storage <- NULL
-  for (v in 1:nbalvars){
-    storage[v] <- t.test(Tr[,v], Co[,v], paired = T)$p.value
-  }
-  for (v in (nbalvars+1):(nbalvars*2)){
-    storage[v] <- suppressWarnings(ks.test(Tr, Co)$p.value)
-  }
-  
-  loss.func <- min(storage, na.rm = T)
-  
-  return(loss.func)
-}
-
-maxQQdif <- function(x){
-  
-  wmatrix <- diag(x, nrow = nvars)
-  
-  # To counter the error that leading minors are not positive.
-  # This happens when the eigenvectors are not positive, and the data is
-  # too noisy to estimate a full covariance matrix. So add a penalty
-  # term to push away from zero.
-  eigenvalues <- eigen(wmatrix, symmetric = TRUE, only.values = TRUE)$values
-  if (min(eigenvalues) < sqrt(.Machine$double.eps)){
-    wmatrix <- wmatrix + diag(nvars) * sqrt(.Machine$double.eps)
-  } 
-  
-  match.init <- Match(Tr = D, X = X,
-                      Weight.matrix = wmatrix)
-  
-  index.treated <- match.init$index.treated
-  index.control <- match.init$index.control
-  Tr <- BalanceVars[index.treated,]
-  Co <- BalanceVars[index.control,]
-  
-  storage <- NULL
-  for (v in 1:nbalvars){
-    storage[v] <- qqstats(Tr, Co, standardize = T)$mediandiff
-  }
-  
-  loss.func <- max(storage, na.rm = T)
-  
-  return(loss.func)
-}
-
-# .. Variables to seek balance on ####
-PropensityScore <- glm(treat ~ age + educ + black + hisp
-                       + married + nodegr + re74 + re75, 
-                       family = binomial, data = lalonde)$fitted
-BalanceVars <- cbind(BalanceMatrix, PropensityScore)
-nvars <- ncol(X)
-nbalvars <- ncol(BalanceVars)
-
-
-# .. Run genetic algorithm to figure out optimal weights ####
-GA.out.pval <- GA(fitness.func = minpval, 
-                  pop.size = 50, max.iter = 1000,
-                  lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
-                  percent.elites = 25,
-                  prob.mutation = 0.5,
-                  keep.track = F, seed = 232)
-
-GA.out.QQ <- GA(fitness.func = function(x) -maxQQdif(x), 
-                pop.size = 50, max.iter = 500,
-                lower = rep(1, nbalvars), upper = rep(1000, nbalvars),
-                mutation = boundary.mutation,
-                keep.track = T, seed = 232)
-
-save(GA.out.pval, file = "Results/GA.out.pval.RData")
-save(GA.out.QQ, file = "Results/GA.out.QQ.RData")
-
-
-# .. Perform matching with optimal weights ####
-wmatrix.pval <- diag(x = as.numeric(GA.out.pval$solution))
-wmatrix.QQ <- diag(x = as.numeric(GA.out.QQ$solution))
-
-match.GA.pval <- Match(Y = Y, Tr = D, X = X, 
-                       Weight.matrix = wmatrix.pval,
-                       BiasAdjust = T)
-match.GA.QQ <- Match(Y = Y, Tr = D, X = X, 
-                     Weight.matrix = wmatrix.QQ,
-                     BiasAdjust = T)
-
-
-# .. Evaluate balance ####
-GA.pval.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
-             + black + hisp + married + nodegr 
-             + re74 + I(re74^2) + re75 + I(re75^2) 
-             + u74 + u75 + I(re74 * re75)
-             + I(age * nodegr) + I(educ * re74)
-             + I(educ * re75),
-             match.out = match.GA.pval, 
-             nboots = 1000, data = lalonde)
-baltest <- baltest.collect(GA.pval.bal,
-                           var.names = varnames,
-                           after = T)
-bal.out.GA.pval <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
-colnames(bal.out.GA.pval) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
-kable(bal.out, format = "latex")
-
-GA.QQ.bal <- MatchBalance(D ~ age + I(age^2) + educ + I(educ^2) 
-             + black + hisp + married + nodegr 
-             + re74 + I(re74^2) + re75 + I(re75^2) 
-             + u74 + u75 + I(re74 * re75)
-             + I(age * nodegr) + I(educ * re74)
-             + I(educ * re75),
-             match.out = match.GA.QQ, 
-             nboots = 1000, data = lalonde)
-baltest <- baltest.collect(GA.QQ.bal,
-                           var.names = varnames,
-                           after = T)
-bal.out.GA.QQ <- round(baltest[, c("mean.Tr", "mean.Co", "T pval", "KS pval")], 2)
-colnames(bal.out.GA.QQ) <- c("Mean Treated", "Mean Control", "t p-value", "KS p-value")
-kable(bal.out, format = "latex")
-
-
-# .. Plot results ####
-# treated.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.treated, ])
-# control.obs.pval <- as.data.frame(match.GA.pval$mdata$X[match.GA.pval$index.control, ])
-
-treated.obs.pval <- lalonde[match.GA.pval$index.treated,]
-control.obs.pval <- lalonde[match.GA.pval$index.control,]
-
-treated.obs.QQ <- as.data.frame(match.GA.QQ$mdata$X[match.GA.QQ$index.treated, ])
-control.obs.QQ <- as.data.frame(match.GA.QQ$mdata$X[match.GA.QQ$index.control, ])
-
-for (v in 1:nvars){
-  pdf(paste0("Figures/minpval_Empirical QQ plot_", colnames(lalonde)[v], ".pdf"), 
-      height = 4, width = 6)
-  par(mfrow = c(1,2), oma = c(0, 0, 2, 0))
-  qqplot(lalonde[treat == 0, v], lalonde[treat == 1, v],
-         main = "Before matching",
-         xlab = "Control Observations",
-         ylab = "Treated Observations")
-  abline(0,1, lty = 2)
-  qqplot(control.obs.pval[, v], treated.obs.pval[, v],
-         main = "After matching",
-         xlab = "Control Observations",
-         ylab = "Treated Observations")
-  abline(0,1, lty = 2)
-  title(paste0("Empirical Q-Q plot of ", colnames(lalonde)[v]), outer = T)
-  dev.off()
-}
-
-for (v in 1:nvars){
-  pdf(paste0("Figures/maxQQdif_Empirical QQ plot_", colnames(lalonde)[v], ".pdf"), 
-      height = 4, width = 6)
-  par(mfrow = c(1,2), oma = c(0, 0, 2, 0))
-  qqplot(lalonde$educ[treat == 0], lalonde$educ[treat == 1],
-         main = "Before matching",
-         xlab = "Control Observations",
-         ylab = "Treated Observations")
-  abline(0,1, lty = 2)
-  qqplot(control.obs.QQ$educ, treated.obs.QQ$educ,
-         main = "After matching",
-         xlab = "Control Observations",
-         ylab = "Treated Observations")
-  abline(0,1, lty = 2)
-  title(paste0("Empirical Q-Q plot of ", colnames(lalonde)[v]), outer = T)
-  dev.off()
-}
 

@@ -12,6 +12,9 @@ dim(images.raw)
 digits <- images.raw[,-1]
 dim(digits)
 
+# Extract true labels
+labels <- images.raw[, 1]
+
 head(which(labels == 0))
 digit0 <- matrix(digits[2,], nrow = 1)
 
